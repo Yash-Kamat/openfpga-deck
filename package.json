@@ -1,0 +1,51 @@
+{
+  "name": "openfpga-deck",
+  "displayName": "OpenFPGA Deck",
+  "description": "Open-source FPGA development workflow for VS Code, built on YosysHQ OSS CAD Suite.",
+  "version": "0.0.1",
+  "publisher": "openfpga-deck",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "fpga",
+    "yosys",
+    "nextpnr",
+    "verilog",
+    "vhdl",
+    "gowin",
+    "tang nano"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "openfpga.hello",
+        "title": "OpenFPGA Deck: Hello",
+        "category": "OpenFPGA"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "pretest": "npm run compile && npm run lint",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0",
+    "eslint": "^9.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.5.0",
+    "@typescript-eslint/parser": "^8.5.0",
+    "@vscode/vsce": "^3.1.0"
+  }
+}
