@@ -26,8 +26,13 @@
     "commands": [
       {
         "command": "openfpga.hello",
-        "title": "OpenFPGA Deck: Hello",
-        "category": "OpenFPGA"
+        "title": "Hello",
+        "category": "OpenFPGA Deck"
+      },
+      {
+        "command": "openfpga.validateProject",
+        "title": "Validate Project",
+        "category": "OpenFPGA Deck"
       }
     ]
   },
@@ -35,17 +40,22 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src",
+    "lint": "eslint src test",
+    "compile-tests": "tsc -p ./tsconfig.test.json",
     "pretest": "npm run compile && npm run lint",
+    "test": "npm run compile-tests && node --test \"out-test/**/*.test.js\"",
     "package": "vsce package"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
     "@types/node": "^24.0.0",
-    "typescript": "^5.6.0",
-    "eslint": "^9.9.0",
+    "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^8.5.0",
     "@typescript-eslint/parser": "^8.5.0",
-    "@vscode/vsce": "^3.1.0"
+    "@vscode/vsce": "^3.1.0",
+    "eslint": "^9.9.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
   }
 }

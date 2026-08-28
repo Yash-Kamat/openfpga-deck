@@ -1,0 +1,16 @@
+# fpga.yaml — OpenFPGA Deck project file
+#
+# This is the reference example project: a blinking LED for the Sipeed
+# Tang Nano 20K. The HDL source and constraint file are added in a later
+# phase; for now this file exists so the project loader has something real
+# to validate against.
+
+name: blink                    # design name; used as the stem for build artefacts
+board: tang-nano-20k           # board id, resolved against the board registry
+top: top                       # top-level HDL module name
+
+sources:                       # HDL sources, relative to this file's directory
+  - src/top.sv
+
+constraints:                   # constraint files (.cst for Gowin)
+  - constraints/top.cst

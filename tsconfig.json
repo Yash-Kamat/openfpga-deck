@@ -6,11 +6,13 @@
     "outDir": "out",
     "rootDir": "src",
     "sourceMap": true,
+    "esModuleInterop": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
-  "exclude": ["node_modules", ".vscode-test", "out"]
+  "include": ["src"],
+  "exclude": ["node_modules", ".vscode-test", "out", "out-test"]
 }

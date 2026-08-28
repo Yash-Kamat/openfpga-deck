@@ -1,0 +1,6 @@
+// PLACEHOLDER Gowin physical constraints — real pin assignments for the
+// Tang Nano 20K land in Phase 4, verified against the board and the
+// installed OSS CAD Suite. This file only needs to exist for now.
+//
+// IO_LOC "clk" 4;
+// IO_LOC "led" 10;

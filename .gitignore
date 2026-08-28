@@ -1,5 +1,10 @@
 node_modules/
 out/
+out-test/
 *.vsix
 .vscode-test/
 build/
+
+# stray tsc output (tests compile to out-test/)
+test/**/*.js
+test/**/*.js.map
