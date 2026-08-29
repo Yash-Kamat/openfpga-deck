@@ -1,0 +1,58 @@
+# Sipeed Tang Nano 20K — board definition for OpenFPGA Deck.
+#
+# Pin assignments compiled from Sipeed's own example constraint files
+# (github.com/sipeed/TangNano-20K-example) and cross-checked against
+# litex-boards (sipeed_tang_nano_20k.py, BSD-2-Clause) and the Sipeed wiki
+# (wiki.sipeed.com/hardware/en/tang/tang-nano-20k/nano-20k.html).
+#
+# The build pipeline consumes `fpga`, `synth`, and `programmer`. `pins` and
+# `clocks` are used to scaffold a constraints file (Initialize Project) and,
+# later, the visual IO planner.
+
+id: tang-nano-20k
+name: Sipeed Tang Nano 20K
+vendor: Sipeed
+
+fpga:
+  part: GW2AR-LV18QN88C8/I7   # nextpnr-himbaechel --device
+  family: GW2A-18C            # nextpnr-himbaechel --vopt family / gowin_pack -d
+  package: QN88
+
+synth:
+  family: gw2a               # yosys: synth_gowin -family <family>
+
+programmer:
+  tool: openFPGALoader
+  board: tangnano20k         # openFPGALoader -b <board>
+  defaultTarget: sram        # sram (volatile) | flash (persistent, adds -f)
+
+clocks:
+  - signal: clk
+    mhz: 27
+
+# Applied to every pin below unless the pin overrides it.
+defaults:
+  iostd: LVCMOS33
+  bankVccio: "3.3"
+
+# signal -> { loc, iostd?, pull?, drive?, bankVccio?, attrs? }.  loc is a
+# string: a pin number ("4"), a differential pair / alternatives ("33,34"),
+# or a ball name ("H11").  attrs passes any other Gowin IO_PORT attribute
+# through verbatim, e.g. attrs: { SINGLE_RESISTOR: ON }.
+pins:
+  clk: { loc: "4", pull: up }
+
+  "led[0]": { loc: "15", pull: up, drive: 8 }
+  "led[1]": { loc: "16", pull: up, drive: 8 }
+  "led[2]": { loc: "17", pull: up, drive: 8 }
+  "led[3]": { loc: "18", pull: up, drive: 8 }
+  "led[4]": { loc: "19", pull: up, drive: 8 }
+  "led[5]": { loc: "20", pull: up, drive: 8 }
+
+  reset: { loc: "88", pull: up }   # button S1
+  key:   { loc: "87", pull: up }   # button S2
+
+  uart_tx: { loc: "69" }   # FPGA -> host (via BL616)
+  uart_rx: { loc: "70" }   # host -> FPGA
+
+  ws2812: { loc: "79", drive: 8 }   # onboard RGB LED

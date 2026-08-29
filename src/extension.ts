@@ -1,6 +1,7 @@
+import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { loadProject, PROJECT_FILE_NAME } from './project/loader';
-import type { ConfigIssue } from './project/schema';
+import { loadBoardRegistry } from './boards/registry';
+import { registerProjectUi } from './project/ui';
 import { registerToolchainUi } from './toolchain/ui';
 
 /**
@@ -16,16 +17,15 @@ export function activate(context: vscode.ExtensionContext): void {
 	const output = vscode.window.createOutputChannel('OpenFPGA Deck');
 	context.subscriptions.push(output);
 
-	// context.subscriptions is VS Code's cleanup list: everything pushed here
-	// is automatically disposed when the extension deactivates, so we don't
-	// leak listeners/commands across reloads.
-	context.subscriptions.push(
-		vscode.commands.registerCommand('openfpga.validateProject', () => {
-			validateProjectCommand(output);
-		}),
-	);
+	// Board definitions shipped with the extension (boards/**/*.yaml).
+	const boards = loadBoardRegistry(path.join(context.extensionPath, 'boards'));
+	for (const err of boards.errors) {
+		output.appendLine(`Board definition problem in ${err.file}: ${err.message}`);
+	}
 
-	// Toolchain status-bar item and the Verify/Select Toolchain commands.
+	// Each module registers its own commands, status-bar items and watchers,
+	// pushing them onto context.subscriptions for automatic disposal.
+	registerProjectUi(context, output, boards);
 	registerToolchainUi(context, output);
 }
 
@@ -38,62 +38,4 @@ export function activate(context: vscode.ExtensionContext): void {
  */
 export function deactivate(): void {
 	// Intentionally empty for now.
-}
-
-function validateProjectCommand(output: vscode.OutputChannel): void {
-	const folders = vscode.workspace.workspaceFolders;
-	if (!folders || folders.length === 0) {
-		vscode.window.showErrorMessage('OpenFPGA Deck: open a folder before validating a project.');
-		return;
-	}
-
-	// Phase 2 assumes a single-root workspace; multi-root support comes later.
-	const root = folders[0].uri.fsPath;
-	const result = loadProject(root);
-
-	output.clear();
-	output.show(true);
-	output.appendLine(`Validating ${PROJECT_FILE_NAME} in ${root}`);
-	output.appendLine('');
-
-	if (result.ok) {
-		const p = result.value.project;
-		output.appendLine('Project file is valid.');
-		output.appendLine(`  name:        ${p.name}`);
-		output.appendLine(`  board:       ${p.board}`);
-		output.appendLine(`  top:         ${p.top}`);
-		output.appendLine(`  sources:     ${p.sources.join(', ')}`);
-		output.appendLine(`  constraints: ${p.constraints.join(', ')}`);
-		appendIssues(output, 'Warnings', result.value.warnings);
-
-		if (result.value.warnings.length > 0) {
-			vscode.window.showWarningMessage(
-				`OpenFPGA Deck: project valid with ${result.value.warnings.length} warning(s). See the OpenFPGA Deck output.`,
-			);
-		} else {
-			vscode.window.showInformationMessage('OpenFPGA Deck: project file is valid.');
-		}
-		return;
-	}
-
-	appendIssues(output, 'Errors', result.errors);
-	appendIssues(output, 'Warnings', result.warnings);
-	vscode.window.showErrorMessage(
-		`OpenFPGA Deck: project file is invalid (${result.errors.length} error(s)). See the OpenFPGA Deck output.`,
-	);
-}
-
-function appendIssues(output: vscode.OutputChannel, heading: string, issues: ConfigIssue[]): void {
-	if (issues.length === 0) {
-		return;
-	}
-	output.appendLine('');
-	output.appendLine(`${heading}:`);
-	for (const issue of issues) {
-		const where =
-			issue.line !== undefined
-				? ` (line ${issue.line}${issue.column !== undefined ? `, col ${issue.column}` : ''})`
-				: '';
-		output.appendLine(`  - ${issue.message}${where}`);
-	}
 }

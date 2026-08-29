@@ -59,6 +59,7 @@ const nodeFsHost: ProjectFsHost = {
 export function loadProject(
 	root: string,
 	host: ProjectFsHost = nodeFsHost,
+	knownBoardIds?: readonly string[],
 ): LoadProjectResult {
 	const configPath = path.join(root, PROJECT_FILE_NAME);
 
@@ -109,13 +110,20 @@ export function loadProject(
 		return { ok: false, configPath, errors: pathErrors, warnings: validation.warnings };
 	}
 
+	const warnings = [...validation.warnings];
+	if (knownBoardIds && knownBoardIds.length > 0 && !knownBoardIds.includes(validation.project.board)) {
+		warnings.push({
+			message: `Board "${validation.project.board}" is not in the registry. Known boards: ${knownBoardIds.join(', ')}.`,
+		});
+	}
+
 	return {
 		ok: true,
 		value: {
 			project: validation.project,
 			root,
 			configPath,
-			warnings: validation.warnings,
+			warnings,
 		},
 	};
 }

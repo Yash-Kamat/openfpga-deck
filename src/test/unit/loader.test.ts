@@ -109,4 +109,27 @@ describe('loadProject', () => {
 			assert.match(result.errors[0].message, /must be relative/);
 		}
 	});
+
+	it('warns when the board is not a known registry id', () => {
+		const host = makeHost({
+			'/proj/fpga.yaml': GOOD_YAML,
+			'/proj/src/top.sv': '',
+			'/proj/constraints/top.cst': '',
+		});
+		const result = loadProject(ROOT, host, ['some-other-board']);
+		assert.equal(result.ok, true);
+		if (result.ok) {
+			assert.match(result.value.warnings[0].message, /Board "tang-nano-20k" is not in the registry/);
+		}
+	});
+
+	it('does not warn when the board is a known registry id', () => {
+		const host = makeHost({
+			'/proj/fpga.yaml': GOOD_YAML,
+			'/proj/src/top.sv': '',
+			'/proj/constraints/top.cst': '',
+		});
+		const result = loadProject(ROOT, host, ['tang-nano-20k']);
+		assert.equal(result.ok && result.value.warnings.length, 0);
+	});
 });
