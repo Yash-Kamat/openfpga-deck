@@ -30,8 +30,8 @@ them — untested platforms are never claimed as supported.
 | 3b | Managed toolchain download | Done |
 | 4a | Board definition registry | Done |
 | 4b | "Initialize Project" wizard | Done |
-| 5 | Synthesis (Yosys) | In progress |
-| 6 | Place & route (nextpnr-himbaechel) | Planned |
+| 5 | Synthesis (Yosys) | Done |
+| 6 | Place & route (nextpnr-himbaechel) | Next |
 | 7 | Bitstream packing (gowin_pack) | Planned |
 | 8 | Programming (openFPGALoader) | Planned |
 | 9 | Diagnostics (tool logs → editor) | Planned |
@@ -84,7 +84,7 @@ A guided QuickPick sequence for an empty folder: project name → board → top
 module → scaffold `fpga.yaml`, `src/top.sv`, `constraints/top.cst`, and
 `build/`. The richer configuration panel is a v0.2 item (below).
 
-### 5 — Synthesis (Yosys) — In progress
+### 5 — Synthesis (Yosys) — Done
 
 Run `yosys` with `synth_gowin` (family from the board definition) over the
 project sources to produce a JSON netlist. Introduces the build orchestrator:
@@ -92,7 +92,7 @@ subprocesses spawned with argument arrays, output streamed to the channel,
 cancellable, a single-build lock, and a predictable `build/` layout
 (`yosys/ pnr/ bitstream/ logs/ reports/`).
 
-### 6 — Place & route — Planned
+### 6 — Place & route — Next
 
 Run `nextpnr-himbaechel` with the device string, `--vopt family=…`, and the
 `.cst` constraints to produce a placed-and-routed netlist. The per-family
