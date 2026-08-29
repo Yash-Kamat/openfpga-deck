@@ -48,6 +48,11 @@
         "category": "OpenFPGA Deck"
       },
       {
+        "command": "openfpga.placeAndRoute",
+        "title": "Place and Route",
+        "category": "OpenFPGA Deck"
+      },
+      {
         "command": "openfpga.verifyToolchain",
         "title": "Verify Toolchain",
         "category": "OpenFPGA Deck"

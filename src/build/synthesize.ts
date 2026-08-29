@@ -24,17 +24,20 @@ export interface SynthesizeRequest {
 	readonly yosysExe: string;
 }
 
-export interface SynthesizeIo {
+/** Everything a pipeline stage needs from the outside world, injected for tests. */
+export interface PipelineIo {
 	readonly run: ProcessRunner;
 	readonly mkdirp: (dir: string) => Promise<void>;
 	readonly writeFile: (file: string, text: string) => Promise<void>;
 	readonly write: (text: string) => void;
-	/** Optional: check the netlist actually exists after a clean exit. */
+	/** Optional: check an output file actually exists after a clean exit. */
 	readonly exists?: (file: string) => Promise<boolean>;
-	/** Optional: delete a stale netlist before the run. */
+	/** Optional: delete a stale output before the run. */
 	readonly remove?: (file: string) => Promise<void>;
 	readonly signal?: AbortSignal;
 }
+
+export type SynthesizeIo = PipelineIo;
 
 export interface SynthesizeResult {
 	readonly ok: boolean;

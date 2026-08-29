@@ -31,7 +31,7 @@ them — untested platforms are never claimed as supported.
 | 4a | Board definition registry | Done |
 | 4b | "Initialize Project" wizard | Done |
 | 5 | Synthesis (Yosys) | Done |
-| 6 | Place & route (nextpnr-himbaechel) | Next |
+| 6 | Place & route (nextpnr-himbaechel) | In progress |
 | 7 | Bitstream packing (gowin_pack) | Planned |
 | 8 | Programming (openFPGALoader) | Planned |
 | 9 | Diagnostics (tool logs → editor) | Planned |
@@ -95,7 +95,7 @@ cancellable, a single-build lock, and a predictable `build/` layout
 (`yosys/ pnr/ bitstream/ logs/ reports/`). Device/family targeting is
 nextpnr's job (Phase 6), not yosys's.
 
-### 6 — Place & route — Next
+### 6 — Place & route — In progress
 
 Run `nextpnr-himbaechel` with the device string, `--vopt family=…`, and the
 `.cst` constraints to produce a placed-and-routed netlist. The per-family

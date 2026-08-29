@@ -5,9 +5,11 @@ import { validateBoard, type Board } from '../../boards/schema';
 import type { FpgaProject } from '../../project/schema';
 import { buildDirs, buildLayout } from '../../build/layout';
 import { planYosys } from '../../build/yosys';
+import { planNextpnr } from '../../build/nextpnr';
 import { runStep, type ProcessResult, type ProcessSpec } from '../../build/runStep';
 import { acquireBuildLock, isBuildRunning, releaseBuildLock } from '../../build/lock';
 import { synthesize, type SynthesizeIo } from '../../build/synthesize';
+import { placeAndRoute } from '../../build/placeAndRoute';
 
 const ROOT = '/home/dev/blinky';
 
@@ -80,6 +82,48 @@ describe('planYosys', () => {
 
 	it('rejects a project with no synthesizable sources', () => {
 		const result = planYosys(project([]), board(), ROOT);
+		assert.equal(result.ok, false);
+	});
+});
+
+describe('planNextpnr', () => {
+	it('builds the device / family / cst / json / write argument array', () => {
+		const result = planNextpnr(project(['src/top.v']), board(), ROOT);
+		assert.equal(result.ok, true);
+		if (!result.ok) {
+			return;
+		}
+		assert.deepEqual(result.plan.args, [
+			'--device',
+			'GW2AR-LV18QN88C8/I7',
+			'--vopt',
+			'family=GW2A-18C',
+			'--vopt',
+			'cst=constraints/top.cst',
+			'--json',
+			'build/yosys/top.json',
+			'--write',
+			'build/pnr/top.pnr.json',
+		]);
+		assert.equal(result.plan.pnrJsonPath, path.join(ROOT, 'build', 'pnr', 'top.pnr.json'));
+	});
+
+	it('emits one --vopt cst= per .cst and ignores non-.cst constraints', () => {
+		const p: FpgaProject = {
+			...project(['src/top.v']),
+			constraints: ['constraints/a.cst', 'constraints/notes.txt', 'constraints/b.cst'],
+		};
+		const result = planNextpnr(p, board(), ROOT);
+		assert.ok(result.ok);
+		if (result.ok) {
+			const csts = result.plan.args.filter((a) => a.startsWith('cst='));
+			assert.deepEqual(csts, ['cst=constraints/a.cst', 'cst=constraints/b.cst']);
+		}
+	});
+
+	it('fails when the project has no .cst constraint', () => {
+		const p: FpgaProject = { ...project(['src/top.v']), constraints: ['constraints/pins.txt'] };
+		const result = planNextpnr(p, board(), ROOT);
 		assert.equal(result.ok, false);
 	});
 });
@@ -247,5 +291,63 @@ describe('synthesize', () => {
 		);
 		assert.equal(result.ok, false);
 		assert.equal(h.calls.length, 0);
+	});
+});
+
+describe('placeAndRoute', () => {
+	function io(
+		runResult: ProcessResult,
+		opts: { netlistIn?: boolean; pnrOut?: boolean } = {},
+	): SynthesizeIo & { dirs: string[]; calls: ProcessSpec[] } {
+		const dirs: string[] = [];
+		const calls: ProcessSpec[] = [];
+		const netlistIn = opts.netlistIn ?? true;
+		const pnrOut = opts.pnrOut ?? true;
+		return {
+			dirs,
+			calls,
+			run: async (spec) => {
+				calls.push(spec);
+				return runResult;
+			},
+			mkdirp: async (d) => {
+				dirs.push(d);
+			},
+			writeFile: async () => {},
+			write: () => {},
+			exists: async (file) =>
+				file.endsWith('top.json') ? netlistIn : file.endsWith('top.pnr.json') ? pnrOut : true,
+		};
+	}
+
+	const req = {
+		project: project(['src/top.v']),
+		board: board(),
+		projectRoot: ROOT,
+		nextpnrExe: '/opt/oss/bin/nextpnr-himbaechel',
+	};
+
+	it('runs nextpnr and returns the placed netlist path', async () => {
+		const h = io({ code: 0, signal: null });
+		const result = await placeAndRoute(req, h);
+		assert.equal(result.ok, true);
+		assert.equal(result.pnrJsonPath, path.join(ROOT, 'build', 'pnr', 'top.pnr.json'));
+		assert.equal(h.calls[0].exe, '/opt/oss/bin/nextpnr-himbaechel');
+		assert.equal(h.calls[0].args[0], '--device');
+	});
+
+	it('refuses to run when the synthesis netlist is missing', async () => {
+		const h = io({ code: 0, signal: null }, { netlistIn: false });
+		const result = await placeAndRoute(req, h);
+		assert.equal(result.ok, false);
+		assert.match(result.summary, /run Synthesize first/);
+		assert.equal(h.calls.length, 0);
+	});
+
+	it('fails when nextpnr exits cleanly but writes no netlist', async () => {
+		const h = io({ code: 0, signal: null }, { pnrOut: false });
+		const result = await placeAndRoute(req, h);
+		assert.equal(result.ok, false);
+		assert.match(result.summary, /no netlist/);
 	});
 });
