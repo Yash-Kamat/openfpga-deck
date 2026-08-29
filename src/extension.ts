@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import { loadProject, PROJECT_FILE_NAME } from './project/loader';
 import type { ConfigIssue } from './project/schema';
+import { registerToolchainUi } from './toolchain/ui';
 
 /**
- * Called by VS Code once, the first time an activation event for this
- * extension fires (here: the first time the user runs one of our commands).
- * Everything the extension needs to register — commands, status bar items,
- * output channels, etc. — happens here.
+ * Called by VS Code when an activation event fires (here: `onStartupFinished`,
+ * shortly after the window opens). Everything the extension needs to register
+ * — commands, status bar items, output channels — happens here.
  */
 export function activate(context: vscode.ExtensionContext): void {
 	// A single output channel for everything the extension reports. VS Code
@@ -16,18 +16,17 @@ export function activate(context: vscode.ExtensionContext): void {
 	const output = vscode.window.createOutputChannel('OpenFPGA Deck');
 	context.subscriptions.push(output);
 
-	const helloCommand = vscode.commands.registerCommand('openfpga.hello', () => {
-		vscode.window.showInformationMessage('OpenFPGA Deck is alive.');
-	});
-
-	const validateCommand = vscode.commands.registerCommand('openfpga.validateProject', () => {
-		validateProjectCommand(output);
-	});
-
 	// context.subscriptions is VS Code's cleanup list: everything pushed here
 	// is automatically disposed when the extension deactivates, so we don't
 	// leak listeners/commands across reloads.
-	context.subscriptions.push(helloCommand, validateCommand);
+	context.subscriptions.push(
+		vscode.commands.registerCommand('openfpga.validateProject', () => {
+			validateProjectCommand(output);
+		}),
+	);
+
+	// Toolchain status-bar item and the Verify/Select Toolchain commands.
+	registerToolchainUi(context, output);
 }
 
 /**

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateConfig } from '../../src/project/schema';
+import { validateConfig } from '../../project/schema';
 
 const valid = {
 	name: 'blink',

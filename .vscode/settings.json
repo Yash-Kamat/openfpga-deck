@@ -1,0 +1,7 @@
+{
+  // Use the TypeScript version pinned in this project's devDependencies, not
+  // whatever version VS Code happens to bundle. Keeps the editor's type
+  // checking identical to `npm run compile` for everyone working on the repo.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

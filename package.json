@@ -20,30 +20,47 @@
     "gowin",
     "tang nano"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "openfpga.hello",
-        "title": "Hello",
-        "category": "OpenFPGA Deck"
-      },
-      {
         "command": "openfpga.validateProject",
         "title": "Validate Project",
         "category": "OpenFPGA Deck"
+      },
+      {
+        "command": "openfpga.verifyToolchain",
+        "title": "Verify Toolchain",
+        "category": "OpenFPGA Deck"
+      },
+      {
+        "command": "openfpga.selectToolchain",
+        "title": "Select Toolchain",
+        "category": "OpenFPGA Deck"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "OpenFPGA Deck",
+      "properties": {
+        "openfpga.toolchain.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Absolute path to an OSS CAD Suite installation — the folder that contains `bin/` and `environment` (a parent folder that contains `oss-cad-suite/` also works). Leave empty to auto-detect from PATH and common install locations. For security this cannot be set per-workspace."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src test",
-    "compile-tests": "tsc -p ./tsconfig.test.json",
+    "lint": "eslint src",
     "pretest": "npm run compile && npm run lint",
-    "test": "npm run compile-tests && node --test \"out-test/**/*.test.js\"",
+    "test": "node --test \"out/test/**/*.test.js\"",
     "package": "vsce package"
   },
   "devDependencies": {

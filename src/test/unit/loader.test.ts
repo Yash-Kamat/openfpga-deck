@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadProject, type ProjectFsHost } from '../../src/project/loader';
+import { loadProject, type ProjectFsHost } from '../../project/loader';
 
 const ROOT = '/proj';
 

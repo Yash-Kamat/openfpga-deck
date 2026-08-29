@@ -1,10 +1,12 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "target": "ES2022",
     "lib": ["ES2022"],
     "outDir": "out",
     "rootDir": "src",
+    "types": ["node"],
     "sourceMap": true,
     "esModuleInterop": true,
     "strict": true,
@@ -14,5 +16,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", ".vscode-test", "out", "out-test"]
+  "exclude": ["node_modules", ".vscode-test", "out"]
 }
