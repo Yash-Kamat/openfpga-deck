@@ -11,9 +11,11 @@
  */
 
 import * as os from 'node:os';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import {
 	discover,
+	expandHome,
 	findAllToolchains,
 	REQUIRED_TOOLS,
 	validateToolchainAt,
@@ -23,15 +25,23 @@ import {
 	type ToolchainSource,
 } from './discovery';
 import { nodeToolchainHost } from './nodeHost';
+import { downloadToolchainCommand } from './installCommand';
 
 const SETTING_PATH = 'openfpga.toolchain.path';
+const SETTING_INSTALL_DIR = 'openfpga.toolchain.installDir';
 
 function currentOptions(): DiscoverOptions {
+	const cfg = vscode.workspace.getConfiguration();
 	return {
-		configuredPath: vscode.workspace.getConfiguration().get<string>(SETTING_PATH) ?? '',
+		configuredPath: cfg.get<string>(SETTING_PATH) ?? '',
+		installDir: cfg.get<string>(SETTING_INSTALL_DIR) ?? '',
 		pathEnv: process.env.PATH ?? '',
 		homeDir: os.homedir(),
 	};
+}
+
+function activePath(): string {
+	return (vscode.workspace.getConfiguration().get<string>(SETTING_PATH) ?? '').trim();
 }
 
 export function registerToolchainUi(
@@ -45,7 +55,8 @@ export function registerToolchainUi(
 	const refresh = (): void => {
 		const result = discover(currentOptions(), nodeToolchainHost);
 		if (result.ok) {
-			status.text = '$(circuit-board) OSS CAD Suite';
+			const tag = result.toolchain.tag;
+			status.text = tag ? `$(circuit-board) OSS CAD Suite ${tag}` : '$(circuit-board) OSS CAD Suite';
 			status.tooltip = `OpenFPGA Deck: OSS CAD Suite at ${result.toolchain.root}`;
 			status.backgroundColor = undefined;
 		} else {
@@ -62,12 +73,16 @@ export function registerToolchainUi(
 				refresh();
 			}
 		}),
-		vscode.commands.registerCommand('openfpga.verifyToolchain', () => {
-			reportToolchain(output, discover(currentOptions(), nodeToolchainHost));
+		vscode.commands.registerCommand('openfpga.verifyToolchain', async () => {
+			await reportToolchain(output, discover(currentOptions(), nodeToolchainHost));
 			refresh();
 		}),
 		vscode.commands.registerCommand('openfpga.selectToolchain', async () => {
 			await selectToolchain(output);
+			refresh();
+		}),
+		vscode.commands.registerCommand('openfpga.downloadToolchain', async () => {
+			await downloadToolchainCommand(context, output);
 			refresh();
 		}),
 	);
@@ -75,7 +90,10 @@ export function registerToolchainUi(
 	refresh();
 }
 
-function reportToolchain(output: vscode.OutputChannel, result: DiscoverResult): void {
+async function reportToolchain(
+	output: vscode.OutputChannel,
+	result: DiscoverResult,
+): Promise<void> {
 	output.clear();
 	output.show(true);
 
@@ -89,14 +107,24 @@ function reportToolchain(output: vscode.OutputChannel, result: DiscoverResult): 
 				output.appendLine(`  - ${loc}`);
 			}
 		}
-		output.appendLine('');
-		output.appendLine('Run "OpenFPGA Deck: Select Toolchain" to choose one.');
-		vscode.window.showWarningMessage('OpenFPGA Deck: no OSS CAD Suite found. See the OpenFPGA Deck output.');
+		const pick = await vscode.window.showWarningMessage(
+			'OpenFPGA Deck: no OSS CAD Suite found.',
+			'Download…',
+			'Select Existing…',
+		);
+		if (pick === 'Download…') {
+			await vscode.commands.executeCommand('openfpga.downloadToolchain');
+		} else if (pick === 'Select Existing…') {
+			await vscode.commands.executeCommand('openfpga.selectToolchain');
+		}
 		return;
 	}
 
 	const { toolchain, source } = result;
 	output.appendLine(`OSS CAD Suite found (via ${sourceLabel(source)}).`);
+	if (toolchain.tag) {
+		output.appendLine(`  release: ${toolchain.tag}`);
+	}
 	output.appendLine(`  root: ${toolchain.root}`);
 	output.appendLine('');
 	output.appendLine('Tools:');
@@ -109,20 +137,28 @@ function reportToolchain(output: vscode.OutputChannel, result: DiscoverResult): 
 }
 
 async function selectToolchain(output: vscode.OutputChannel): Promise<void> {
-	const options = currentOptions();
-	const found = findAllToolchains(options, nodeToolchainHost);
+	const found = findAllToolchains(currentOptions(), nodeToolchainHost);
+	const active = activePath();
 
-	type Item = vscode.QuickPickItem & { root?: string; action?: 'browse' };
+	type Item = vscode.QuickPickItem & { root?: string; action?: 'browse' | 'download' };
 	const items: Item[] = found.map((tc) => ({
-		label: `$(circuit-board) ${tc.root}`,
-		description: describeVersions(tc),
+		label: `$(circuit-board) ${tc.tag ?? path.basename(tc.root)}`,
+		description: [describeVersions(tc), tc.root === active ? '• active' : ''].filter(Boolean).join('  '),
+		detail: tc.root,
 		root: tc.root,
 	}));
-	items.push({
-		label: '$(folder-opened) Enter a path manually…',
-		description: 'Point at an oss-cad-suite folder',
-		action: 'browse',
-	});
+	items.push(
+		{
+			label: '$(folder-opened) Choose a folder…',
+			description: 'Point at an existing oss-cad-suite folder',
+			action: 'browse',
+		},
+		{
+			label: '$(cloud-download) Download a new one…',
+			description: 'Fetch OSS CAD Suite from GitHub',
+			action: 'download',
+		},
+	);
 
 	const picked = await vscode.window.showQuickPick(items, {
 		title: 'Select OSS CAD Suite toolchain',
@@ -132,10 +168,12 @@ async function selectToolchain(output: vscode.OutputChannel): Promise<void> {
 		return;
 	}
 
-	let chosenRoot: string | undefined = picked.root;
-	if (picked.action === 'browse') {
-		chosenRoot = await promptForPath();
+	if (picked.action === 'download') {
+		await vscode.commands.executeCommand('openfpga.downloadToolchain');
+		return;
 	}
+
+	const chosenRoot = picked.action === 'browse' ? await promptForPath() : picked.root;
 	if (!chosenRoot) {
 		return;
 	}
@@ -143,36 +181,33 @@ async function selectToolchain(output: vscode.OutputChannel): Promise<void> {
 	await vscode.workspace
 		.getConfiguration()
 		.update(SETTING_PATH, chosenRoot, vscode.ConfigurationTarget.Global);
-	output.appendLine(`Toolchain set to: ${chosenRoot}`);
-	vscode.window.showInformationMessage(`OpenFPGA Deck: toolchain set to ${chosenRoot}`);
+	output.appendLine(`Active toolchain set to: ${chosenRoot}`);
+	vscode.window.showInformationMessage(`OpenFPGA Deck: active toolchain set to ${chosenRoot}`);
 }
 
 async function promptForPath(): Promise<string | undefined> {
-	const entered = await vscode.window.showInputBox({
-		title: 'OSS CAD Suite path',
-		prompt: 'Absolute path to the oss-cad-suite folder (or a folder that contains it)',
-		validateInput: (value) => {
-			if (!value.trim()) {
-				return 'Enter a path.';
-			}
-			const result = validateToolchainAt(value.trim(), nodeToolchainHost);
-			return result.ok ? undefined : result.reason;
-		},
+	const picked = await vscode.window.showOpenDialog({
+		canSelectFiles: false,
+		canSelectFolders: true,
+		canSelectMany: false,
+		openLabel: 'Use this toolchain',
+		title: 'Select an oss-cad-suite folder (or one that contains it)',
 	});
-	return entered?.trim() || undefined;
+	if (!picked || picked.length === 0) {
+		return undefined;
+	}
+	const chosen = expandHome(picked[0].fsPath, os.homedir());
+	const result = validateToolchainAt(chosen, nodeToolchainHost);
+	if (!result.ok) {
+		vscode.window.showErrorMessage(`OpenFPGA Deck: not a usable OSS CAD Suite folder. ${result.reason}`);
+		return undefined;
+	}
+	return result.toolchain.root;
 }
 
 function describeVersions(tc: Toolchain): string {
-	const yosys = tc.tools.yosys.version;
-	const pnr = tc.tools['nextpnr-himbaechel'].version;
-	const parts: string[] = [];
-	if (yosys) {
-		parts.push(`yosys ${yosys}`);
-	}
-	if (pnr) {
-		parts.push(pnr);
-	}
-	return parts.join(' · ');
+	const parts = [tc.tools.yosys.version && `yosys ${tc.tools.yosys.version}`, tc.tools['nextpnr-himbaechel'].version];
+	return parts.filter(Boolean).join(' · ');
 }
 
 function sourceLabel(source: ToolchainSource): string {
@@ -181,6 +216,8 @@ function sourceLabel(source: ToolchainSource): string {
 			return 'the openfpga.toolchain.path setting';
 		case 'path':
 			return 'PATH';
+		case 'managed':
+			return 'the OpenFPGA Deck toolchains folder';
 		case 'conventional':
 			return 'a conventional install location';
 	}

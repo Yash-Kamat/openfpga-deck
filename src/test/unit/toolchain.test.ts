@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as path from 'node:path';
 import {
 	discover,
+	expandHome,
 	findAllToolchains,
 	validateToolchainAt,
 	type ProbeResult,
@@ -19,10 +20,15 @@ function toolchainFiles(root: string): string[] {
 	];
 }
 
-function makeHost(files: string[], probes: Record<string, ProbeResult> = {}): ToolchainHost {
+function makeHost(
+	files: string[],
+	probes: Record<string, ProbeResult> = {},
+	dirs: Record<string, string[]> = {},
+): ToolchainHost {
 	const set = new Set(files);
 	return {
 		fileExists: (p) => set.has(p),
+		listDir: (d) => dirs[d] ?? [],
 		probeVersion: (exe) => probes[exe] ?? { stdout: '', stderr: '' },
 	};
 }
@@ -170,5 +176,44 @@ describe('findAllToolchains', () => {
 		);
 		assert.equal(found.length, 1);
 		assert.equal(found[0].root, root);
+	});
+
+	it('lists tag-named managed installs, newest first', () => {
+		const parent = '/home/u/fpga-toolchain';
+		const older = path.join(parent, 'oss-cad-suite-2026-06-29');
+		const newer = path.join(parent, 'oss-cad-suite-2026-08-28');
+		const host = makeHost([...toolchainFiles(older), ...toolchainFiles(newer)], {}, {
+			[parent]: ['oss-cad-suite-2026-06-29', 'oss-cad-suite-2026-08-28', 'downloads'],
+		});
+
+		const found = findAllToolchains({ installDir: parent, homeDir: '/home/u' }, host);
+		assert.deepEqual(
+			found.map((tc) => tc.tag),
+			['2026-08-28', '2026-06-29'],
+		);
+		assert.equal(found[0].root, newer);
+	});
+});
+
+describe('release-tag folder names', () => {
+	it('are exposed as toolchain.tag', () => {
+		const root = '/x/oss-cad-suite-2026-08-28';
+		const result = validateToolchainAt(root, makeHost(toolchainFiles(root)));
+		assert.equal(result.ok && result.toolchain.tag, '2026-08-28');
+	});
+
+	it('leave tag undefined for an un-suffixed folder', () => {
+		const root = '/x/oss-cad-suite';
+		const result = validateToolchainAt(root, makeHost(toolchainFiles(root)));
+		assert.equal(result.ok && result.toolchain.tag, undefined);
+	});
+});
+
+describe('expandHome', () => {
+	it('expands a leading ~ and leaves other paths alone', () => {
+		assert.equal(expandHome('~/fpga-toolchain', '/home/u'), path.join('/home/u', 'fpga-toolchain'));
+		assert.equal(expandHome('~', '/home/u'), '/home/u');
+		assert.equal(expandHome('/opt/x', '/home/u'), '/opt/x');
+		assert.equal(expandHome('relative/path', '/home/u'), 'relative/path');
 	});
 });

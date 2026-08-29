@@ -22,6 +22,17 @@ export const nodeToolchainHost: ToolchainHost = {
 		}
 	},
 
+	listDir(dir: string): string[] {
+		try {
+			return fs
+				.readdirSync(dir, { withFileTypes: true })
+				.filter((entry) => entry.isDirectory())
+				.map((entry) => entry.name);
+		} catch {
+			return [];
+		}
+	},
+
 	probeVersion(exePath: string, args: readonly string[]): ProbeResult {
 		const result = spawnSync(exePath, [...args], {
 			timeout: PROBE_TIMEOUT_MS,
