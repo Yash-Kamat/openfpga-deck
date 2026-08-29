@@ -24,8 +24,19 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "OpenFPGA Deck runs FPGA toolchain binaries and writes project files based on fpga.yaml, so it stays inactive until the folder is trusted."
+    }
+  },
   "contributes": {
     "commands": [
+      {
+        "command": "openfpga.initProject",
+        "title": "Initialize Project",
+        "category": "OpenFPGA Deck"
+      },
       {
         "command": "openfpga.validateProject",
         "title": "Validate Project",

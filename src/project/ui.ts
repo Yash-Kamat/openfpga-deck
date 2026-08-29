@@ -8,6 +8,7 @@ import * as vscode from 'vscode';
 import { loadProject, PROJECT_FILE_NAME, type LoadProjectResult } from './loader';
 import type { ConfigIssue } from './schema';
 import type { BoardRegistry } from '../boards/registry';
+import { initProjectCommand, offerInitForEmptyFolder } from './initCommand';
 
 /** File extensions whose saving should re-check the project. */
 const PROJECT_FILE_RE = /\.(sv|svh|v|vh|vhd|vhdl|cst|ya?ml)$/i;
@@ -55,9 +56,14 @@ export function registerProjectUi(
 			runValidate(output, boards);
 			refresh();
 		}),
+		vscode.commands.registerCommand('openfpga.initProject', async () => {
+			await initProjectCommand(output, boards);
+			refresh();
+		}),
 	);
 
 	refresh();
+	void offerInitForEmptyFolder();
 }
 
 function applyStatus(status: vscode.StatusBarItem, result: LoadProjectResult): void {
