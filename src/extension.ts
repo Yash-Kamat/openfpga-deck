@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { loadBoardRegistry } from './boards/registry';
+import { registerBuildUi } from './build/ui';
 import { registerProjectUi } from './project/ui';
 import { registerToolchainUi } from './toolchain/ui';
 
@@ -27,6 +28,7 @@ export function activate(context: vscode.ExtensionContext): void {
 	// pushing them onto context.subscriptions for automatic disposal.
 	registerProjectUi(context, output, boards);
 	registerToolchainUi(context, output);
+	registerBuildUi(context, output, boards);
 }
 
 /**

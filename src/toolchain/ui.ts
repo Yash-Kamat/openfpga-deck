@@ -22,31 +22,19 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { PROJECT_FILE_NAME } from '../project/loader';
 import {
-	discover,
 	expandHome,
 	findAllToolchains,
 	REQUIRED_TOOLS,
 	validateToolchainAt,
-	type DiscoverOptions,
 	type DiscoverResult,
 	type Toolchain,
 	type ToolchainSource,
 } from './discovery';
 import { nodeToolchainHost } from './nodeHost';
 import { downloadToolchainCommand } from './installCommand';
+import { resolveToolchain, toolchainDiscoverOptions } from './resolve';
 
 const SETTING_PATH = 'openfpga.toolchain.path';
-const SETTING_INSTALL_DIR = 'openfpga.toolchain.installDir';
-
-function currentOptions(): DiscoverOptions {
-	const cfg = vscode.workspace.getConfiguration();
-	return {
-		configuredPath: cfg.get<string>(SETTING_PATH) ?? '',
-		installDir: cfg.get<string>(SETTING_INSTALL_DIR) ?? '',
-		pathEnv: process.env.PATH ?? '',
-		homeDir: os.homedir(),
-	};
-}
 
 function activePath(): string {
 	return (vscode.workspace.getConfiguration().get<string>(SETTING_PATH) ?? '').trim();
@@ -75,7 +63,7 @@ export function registerToolchainUi(
 			textItem.hide();
 			return;
 		}
-		const result = discover(currentOptions(), nodeToolchainHost);
+		const result = resolveToolchain();
 		if (result.ok) {
 			const tag = result.toolchain.tag;
 			iconItem.text = '$(circuit-board)';
@@ -107,7 +95,7 @@ export function registerToolchainUi(
 			}
 		}),
 		vscode.commands.registerCommand('openfpga.verifyToolchain', async () => {
-			await reportToolchain(output, discover(currentOptions(), nodeToolchainHost));
+			await reportToolchain(output, resolveToolchain());
 			refresh();
 		}),
 		vscode.commands.registerCommand('openfpga.selectToolchain', async () => {
@@ -170,7 +158,7 @@ async function reportToolchain(
 }
 
 async function selectToolchain(output: vscode.OutputChannel): Promise<void> {
-	const found = findAllToolchains(currentOptions(), nodeToolchainHost);
+	const found = findAllToolchains(toolchainDiscoverOptions(), nodeToolchainHost);
 	const active = activePath();
 
 	type Item = vscode.QuickPickItem & { root?: string; action?: 'browse' | 'download' };

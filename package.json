@@ -43,6 +43,11 @@
         "category": "OpenFPGA Deck"
       },
       {
+        "command": "openfpga.synthesize",
+        "title": "Synthesize",
+        "category": "OpenFPGA Deck"
+      },
+      {
         "command": "openfpga.verifyToolchain",
         "title": "Verify Toolchain",
         "category": "OpenFPGA Deck"

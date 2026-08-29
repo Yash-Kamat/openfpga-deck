@@ -30,7 +30,7 @@ them — untested platforms are never claimed as supported.
 | 3b | Managed toolchain download | Done |
 | 4a | Board definition registry | Done |
 | 4b | "Initialize Project" wizard | Done |
-| 5 | Synthesis (Yosys) | Next |
+| 5 | Synthesis (Yosys) | In progress |
 | 6 | Place & route (nextpnr-himbaechel) | Planned |
 | 7 | Bitstream packing (gowin_pack) | Planned |
 | 8 | Programming (openFPGALoader) | Planned |
@@ -84,7 +84,7 @@ A guided QuickPick sequence for an empty folder: project name → board → top
 module → scaffold `fpga.yaml`, `src/top.sv`, `constraints/top.cst`, and
 `build/`. The richer configuration panel is a v0.2 item (below).
 
-### 5 — Synthesis (Yosys) — Next
+### 5 — Synthesis (Yosys) — In progress
 
 Run `yosys` with `synth_gowin` (family from the board definition) over the
 project sources to produce a JSON netlist. Introduces the build orchestrator:
