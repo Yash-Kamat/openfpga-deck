@@ -28,9 +28,9 @@ them — untested platforms are never claimed as supported.
 | 2 | `fpga.yaml` project configuration | Done |
 | 3a | Toolchain discovery & validation | Done |
 | 3b | Managed toolchain download | Done |
-| 4a | Board definition registry | Next |
-| 4b | "Initialize Project" wizard | Planned |
-| 5 | Synthesis (Yosys) | Planned |
+| 4a | Board definition registry | Done |
+| 4b | "Initialize Project" wizard | Done |
+| 5 | Synthesis (Yosys) | Next |
 | 6 | Place & route (nextpnr-himbaechel) | Planned |
 | 7 | Bitstream packing (gowin_pack) | Planned |
 | 8 | Programming (openFPGALoader) | Planned |
@@ -70,7 +70,7 @@ trust-on-first-use), extract it safely, and offer to make it active.
 Releases coexist under `<installDir>/oss-cad-suite-<tag>/`; archives are kept
 in `downloads/` and reused when their hash matches.
 
-### 4a — Board definition registry — Next
+### 4a — Board definition registry — Done
 
 Declarative board files (`boards/gowin/tang-nano-20k.yaml`): FPGA part,
 family, package and pin list, default constraints, programmer parameters. A
@@ -78,13 +78,13 @@ loader/validator and a registry the rest of the pipeline reads — no hardcoded
 per-board branching. A reusable `.cst` parse/serialize module lands here too
 (needed by the wizard and, later, the IO planner).
 
-### 4b — "Initialize Project" wizard — Planned
+### 4b — "Initialize Project" wizard — Done
 
 A guided QuickPick sequence for an empty folder: project name → board → top
 module → scaffold `fpga.yaml`, `src/top.sv`, `constraints/top.cst`, and
 `build/`. The richer configuration panel is a v0.2 item (below).
 
-### 5 — Synthesis (Yosys) — Planned
+### 5 — Synthesis (Yosys) — Next
 
 Run `yosys` with `synth_gowin` (family from the board definition) over the
 project sources to produce a JSON netlist. Introduces the build orchestrator:
