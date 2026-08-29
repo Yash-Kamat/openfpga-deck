@@ -81,8 +81,8 @@ export async function initProjectCommand(
 
 	const langPick = await vscode.window.showQuickPick(
 		[
-			{ label: 'SystemVerilog', description: '.sv', value: 'systemverilog' as HdlLanguage },
 			{ label: 'Verilog', description: '.v', value: 'verilog' as HdlLanguage },
+			{ label: 'SystemVerilog', description: '.sv', value: 'systemverilog' as HdlLanguage },
 		],
 		{ title: 'New project — HDL language' },
 	);
