@@ -2,6 +2,12 @@
  * VS Code surface for the toolchain module: a status-bar indicator and the
  * "Verify Toolchain" / "Select Toolchain" commands.
  *
+ * The indicator is two adjacent status-bar items so the icon and the text
+ * can do different things: the `$(circuit-board)` icon verifies the current
+ * toolchain, the "OSS CAD Suite <tag>" text opens the installed-version
+ * picker. Both are shown only when the workspace is an actual OpenFPGA
+ * project (an `fpga.yaml` at its root) and hidden everywhere else.
+ *
  * The toolchain path is stored in the `openfpga.toolchain.path` *setting*,
  * not in `fpga.yaml`, because it is machine-specific. The setting is declared
  * with `machine-overridable` scope so a workspace (which may come from an
@@ -10,9 +16,11 @@
  * therefore always writes to the Global (user) target.
  */
 
+import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { PROJECT_FILE_NAME } from '../project/loader';
 import {
 	discover,
 	expandHome,
@@ -48,26 +56,51 @@ export function registerToolchainUi(
 	context: vscode.ExtensionContext,
 	output: vscode.OutputChannel,
 ): void {
-	const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 90);
-	status.command = 'openfpga.verifyToolchain';
-	context.subscriptions.push(status);
+	// Icon (verify) sits just left of the text (switch version); adjacent
+	// priorities keep them together and left of the project indicator (89).
+	const iconItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 91);
+	iconItem.command = 'openfpga.verifyToolchain';
+	const textItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 90);
+	textItem.command = 'openfpga.selectToolchain';
+	context.subscriptions.push(iconItem, textItem);
+
+	const isProjectFolder = (): boolean => {
+		const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+		return root !== undefined && fs.existsSync(path.join(root, PROJECT_FILE_NAME));
+	};
 
 	const refresh = (): void => {
+		if (!isProjectFolder()) {
+			iconItem.hide();
+			textItem.hide();
+			return;
+		}
 		const result = discover(currentOptions(), nodeToolchainHost);
 		if (result.ok) {
 			const tag = result.toolchain.tag;
-			status.text = tag ? `$(circuit-board) OSS CAD Suite ${tag}` : '$(circuit-board) OSS CAD Suite';
-			status.tooltip = `OpenFPGA Deck: OSS CAD Suite at ${result.toolchain.root}`;
-			status.backgroundColor = undefined;
+			iconItem.text = '$(circuit-board)';
+			iconItem.tooltip = `OpenFPGA Deck: OSS CAD Suite at ${result.toolchain.root} — click to verify`;
+			iconItem.backgroundColor = undefined;
+			textItem.text = tag ? `OSS CAD Suite ${tag}` : 'OSS CAD Suite';
+			textItem.tooltip = 'OpenFPGA Deck: click to switch toolchain version';
+			textItem.backgroundColor = undefined;
 		} else {
-			status.text = '$(warning) No toolchain';
-			status.tooltip = `OpenFPGA Deck: ${result.reason} — click to verify`;
-			status.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+			iconItem.text = '$(warning)';
+			iconItem.tooltip = `OpenFPGA Deck: ${result.reason} — click to verify`;
+			iconItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+			textItem.text = 'No toolchain';
+			textItem.tooltip = 'OpenFPGA Deck: click to select or download a toolchain';
+			textItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
 		}
-		status.show();
+		iconItem.show();
+		textItem.show();
 	};
 
+	const watcher = vscode.workspace.createFileSystemWatcher(`**/${PROJECT_FILE_NAME}`);
 	context.subscriptions.push(
+		watcher,
+		watcher.onDidCreate(refresh),
+		watcher.onDidDelete(refresh),
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration('openfpga.toolchain')) {
 				refresh();
