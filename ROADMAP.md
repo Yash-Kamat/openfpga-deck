@@ -81,16 +81,19 @@ per-board branching. A reusable `.cst` parse/serialize module lands here too
 ### 4b — "Initialize Project" wizard — Done
 
 A guided QuickPick sequence for an empty folder: project name → board → top
-module → scaffold `fpga.yaml`, `src/top.sv`, `constraints/top.cst`, and
-`build/`. The richer configuration panel is a v0.2 item (below).
+module → language (Verilog default) → starter design → scaffold `fpga.yaml`,
+`src/top.v`, `constraints/top.cst`, and `build/`. The richer configuration
+panel is a v0.2 item (below).
 
 ### 5 — Synthesis (Yosys) — Done
 
-Run `yosys` with `synth_gowin` (family from the board definition) over the
-project sources to produce a JSON netlist. Introduces the build orchestrator:
+Run `yosys` with `synth_gowin` over the project sources to produce a JSON
+netlist, via a generated `build/yosys/synth.ys` script (one `read_verilog`
+line per source, `-sv` only for `.sv`). Introduces the build engine:
 subprocesses spawned with argument arrays, output streamed to the channel,
 cancellable, a single-build lock, and a predictable `build/` layout
-(`yosys/ pnr/ bitstream/ logs/ reports/`).
+(`yosys/ pnr/ bitstream/ logs/ reports/`). Device/family targeting is
+nextpnr's job (Phase 6), not yosys's.
 
 ### 6 — Place & route — Next
 
