@@ -35,10 +35,15 @@ them — untested platforms are never claimed as supported.
 | 7 | Bitstream packing (gowin_pack) | Done |
 | 8a | Programming (openFPGALoader) | Done |
 | 8b | Flash backup & restore | Done |
-| 9 | Docs + release metadata | Next |
-| 10 | CI (GitHub Actions) | Planned |
-| 11 | VSIX packaging | Planned |
-| 12 | Marketplace publishing | Planned |
+| 9 | Docs + release metadata | Done |
+| 10 | CI (GitHub Actions) | Done |
+| 11 | VSIX packaging | Done |
+| 12 | Marketplace publishing | Done |
+
+**v0.1.0 shipped 2026-08-31** —
+[live on the Marketplace](https://marketplace.visualstudio.com/items?itemName=openfpga-deck.openfpga-deck),
+tagged [`v0.1.0`](https://github.com/Yash-Kamat/openfpga-deck/releases/tag/v0.1.0)
+on GitHub. Everything below is v0.2 work.
 
 Everything past the working vertical slice that is not needed to *ship*
 has moved to [v0.2 and beyond](#v02-and-beyond): log → Problems-panel
@@ -137,28 +142,35 @@ Detect Board, a "more" menu, and a Cancel button while a build runs);
 progress moves to `ProgressLocation.Window` so the toast stops covering
 the Output view.
 
-### 9 — Docs + release metadata — Next
+### 9 — Docs + release metadata — Done
 
 `README.md` (the Marketplace listing), `CHANGELOG.md`, `SECURITY.md`,
-`CONTRIBUTING.md`, `docs/PUBLISHING.md`. `package.json` release fields:
-`version` 0.1.0, `icon`, `repository`, curated `keywords`. An extension
-icon.
+`CONTRIBUTING.md`, `docs/PUBLISHING.md`, `NOTICE` (Apache-2.0 attribution).
+`package.json` release fields: `version` 0.1.0, `icon`, `repository`,
+`bugs`, `homepage`, curated `keywords`. An extension icon. All commits use
+a GitHub `noreply` address, not a personal email.
 
-### 10 — CI — Planned
+### 10 — CI — Done
 
-GitHub Actions: compile, lint, test, and `vsce package` on Linux; a
-platform matrix as support lands.
+GitHub Actions (`.github/workflows/ci.yml`): compile, lint, test,
+`npm audit`, and `vsce package` on every push/PR. Dependabot for npm and
+Actions, grouped monthly. A platform matrix is a v0.2 item.
 
-### 11 — VSIX packaging — Planned
+### 11 — VSIX packaging — Done
 
-Finalise `.vscodeignore`, review the shipped file list and size, produce
-`openfpga-deck-0.1.0.vsix`. (esbuild bundling is a v0.2 item.)
+`.vscodeignore` finalised (ships `out/`, the board defs, README, CHANGELOG,
+LICENSE, NOTICE, icon — no source, tests, examples, or dev docs);
+`openfpga-deck-0.1.0.vsix` is 196 files / ~270 KB. (esbuild bundling is a
+v0.2 item.)
 
-### 12 — Marketplace publishing — Planned
+### 12 — Marketplace publishing — Done
 
-Publisher setup and `vsce publish`. PAT authentication initially; the Entra
-ID / managed-identity path is documented as the intended successor (Azure
-DevOps retires global PATs on 2026-12-01).
+Publisher `openfpga-deck` created; first release published by uploading
+the `.vsix` directly at marketplace.visualstudio.com/manage (no PAT
+needed for a one-off upload — see `docs/PUBLISHING.md` for the `vsce
+publish` / PAT route used for later releases). PAT auth via Azure DevOps
+for now; the Entra ID / managed-identity path is documented as the
+intended successor (Azure DevOps retires global PATs on 2026-12-01).
 
 ## Security posture (every phase)
 
