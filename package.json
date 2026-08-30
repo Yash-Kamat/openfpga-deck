@@ -1,10 +1,11 @@
 {
   "name": "openfpga-deck",
   "displayName": "OpenFPGA Deck",
-  "description": "Open-source FPGA development workflow for VS Code, built on YosysHQ OSS CAD Suite.",
-  "version": "0.0.1",
+  "description": "Synthesize, place & route, pack and program open-source FPGAs from VS Code, powered by the YosysHQ OSS CAD Suite.",
+  "version": "0.1.0",
   "publisher": "openfpga-deck",
   "license": "Apache-2.0",
+  "icon": "images/icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -13,13 +14,17 @@
   ],
   "keywords": [
     "fpga",
+    "verilog",
+    "systemverilog",
     "yosys",
     "nextpnr",
-    "verilog",
-    "vhdl",
     "gowin",
-    "tang nano"
+    "tang nano 20k",
+    "openfpga",
+    "bitstream",
+    "hdl"
   ],
+  "qna": "marketplace",
   "activationEvents": [
     "onStartupFinished"
   ],
