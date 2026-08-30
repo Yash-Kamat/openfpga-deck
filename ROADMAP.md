@@ -33,8 +33,8 @@ them — untested platforms are never claimed as supported.
 | 5 | Synthesis (Yosys) | Done |
 | 6 | Place & route (nextpnr-himbaechel) | Done |
 | 7 | Bitstream packing (gowin_pack) | Done |
-| 8a | Programming (openFPGALoader) | In progress |
-| 8b | Flash backup before write | Planned |
+| 8a | Programming (openFPGALoader) | Done |
+| 8b | Flash backup before write | Next |
 | 9 | Diagnostics (tool logs → editor) | Planned |
 | 10 | Test suite | Ongoing |
 | 11 | CI (GitHub Actions) | Planned |
@@ -107,7 +107,7 @@ argument model is first-class (Gowin/Himbaechel first).
 Run `gowin_pack` to produce the `.fs` bitstream. Surface a resource-usage
 report to the user.
 
-### 8a — Programming (openFPGALoader) — In progress
+### 8a — Programming (openFPGALoader) — Done
 
 `Program` (a prompt for SRAM, volatile, or SPI flash, persistent — defaulting
 to the board's target), `Build and Program` (the full slice), and
@@ -116,7 +116,7 @@ The board flag comes from the board definition. openFPGALoader's `\r`
 progress bars are throttled in the output channel; permission / udev
 failures get a pointer to the fix.
 
-### 8b — Flash backup before write — Planned
+### 8b — Flash backup before write — Next
 
 Before any flash write, offer to dump the current flash contents
 (`--dump-flash --file-size <programmer.flashSize>`) to
@@ -172,21 +172,61 @@ DevOps retires global PATs on 2026-12-01).
 
 ## v0.2 and beyond
 
-- **Uninstall Toolchain** — remove a managed release folder and/or its
-  archive from a picker, with a guard against removing the active one.
-- **Check for Toolchain Updates** — compare the active release against the
-  latest and offer to fetch it.
+### Build pipeline
+
+- **Incremental builds** — re-run a stage when its inputs changed, not only
+  when its output file is missing. Today a stage command reuses an existing
+  earlier-stage artefact even if the HDL or constraints have since changed;
+  track source mtimes or hashes and rebuild what is stale.
+- **Clean command** — remove the `build/` tree (or just its regenerable
+  parts) from a command.
+- **VHDL synthesis** — wire up the `ghdl` / ghdl-yosys-plugin path bundled in
+  OSS CAD Suite so `.vhd` / `.vhdl` sources synthesise; they are currently
+  rejected with a clear message.
+- **Per-clock timing constraints** — richer than the single global `--freq`
+  taken from the board's first clock today.
+
+### Board & programming
+
+- **Flash backup** — Phase 8b lands the backup-before-write prompt; a later
+  pass may keep a rotating set of dumps and add a "restore" command.
+- **Programmer / cable selection** — when more than one board or FTDI cable
+  is attached, let the user choose (`openFPGALoader --ftdi-serial` / `-c`)
+  instead of assuming the first.
+- **Serial monitor** — open the board's UART (the Tang Nano 20K exposes it as
+  a second USB serial device) in a VS Code terminal at a configurable baud,
+  so `printf`-style debugging and SoC consoles (e.g. the factory LiteX BIOS)
+  work without an external `minicom`.
+
+### Editor experience
+
+- **Coloured build console** — render the pipeline output in a pseudoterminal
+  (`window.createTerminal({ pty })`) with hand-written ANSI: dimmed stage
+  rules, green / red result markers, tool output left as-is. VS Code's `log`
+  output-channel grammar was tried and rejected — its generic lexer colours
+  every number and identifier. Trade-off: moves the build log from the
+  Output panel to the Terminal panel.
 - **Init wizard — configuration panel** — an ESP-IDF-style webview: board and
   FPGA part, detected USB ports, toolchain version selection (existing path
   vs automated download), invalid options greyed out, "restore defaults" and
   "save" actions that scaffold the project. Built on the finished
-  board/toolchain/programmer subsystems.
+  board / toolchain / programmer subsystems.
 - **Visual IO planner** — a package/pin grid; assign top-level ports to
   physical pins by drag-and-drop; round-trips the board's `.cst`. Pin data
   from Project Apicula's device databases. No open-source equivalent exists;
   `nextpnr`'s Qt GUI floorplan view is the reference for rendering the
   fabric.
 - **Floorplanner** — placement-region constraints for P&R. Lower priority.
+
+### Toolchain
+
+- **Uninstall Toolchain** — remove a managed release folder and/or its
+  archive from a picker, with a guard against removing the active one.
+- **Check for Toolchain Updates** — compare the active release against the
+  latest and offer to fetch it.
+
+### Reach
+
 - **Simulation** — Verilator / Icarus Verilog / GTKWave / Surfer integration.
 - **More platforms** — Windows, macOS (Intel and Apple Silicon), Linux
   ARM64.
