@@ -314,11 +314,11 @@ describe('program / detectBoard', () => {
 	});
 
 	it('programFileArgs passes the path through as given (may be outside the project)', () => {
-		assert.deepEqual(programFileArgs(board(), '/home/yash/backups/factory.bin', 'flash'), [
+		assert.deepEqual(programFileArgs(board(), '/home/user/backups/factory.bin', 'flash'), [
 			'-b',
 			'demo',
 			'-f',
-			'/home/yash/backups/factory.bin',
+			'/home/user/backups/factory.bin',
 		]);
 		assert.deepEqual(programFileArgs(board(), '/tmp/foo.fs', 'sram'), ['-b', 'demo', '/tmp/foo.fs']);
 	});
