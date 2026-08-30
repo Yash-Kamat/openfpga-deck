@@ -44,6 +44,17 @@ describe('validateBoard', () => {
 		assert.equal(result.ok, false);
 	});
 
+	it('parses programmer.flashSize (hex or decimal) and rejects nonsense', () => {
+		const hex = validateBoard({ ...VALID, programmer: { board: 'x', flashSize: 0x800000 } });
+		assert.ok(hex.ok && hex.board.programmer.flashSize === 8388608);
+
+		const str = validateBoard({ ...VALID, programmer: { board: 'x', flashSize: '4194304' } });
+		assert.ok(str.ok && str.board.programmer.flashSize === 4194304);
+
+		assert.ok(validateBoard(VALID).ok); // absent → fine
+		assert.equal(validateBoard({ ...VALID, programmer: { board: 'x', flashSize: 'lots' } }).ok, false);
+	});
+
 	it('rejects a pin without a loc', () => {
 		const result = validateBoard({ ...VALID, pins: { clk: { iostd: 'LVCMOS33' } } });
 		assert.equal(result.ok, false);

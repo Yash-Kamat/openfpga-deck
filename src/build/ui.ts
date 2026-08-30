@@ -12,11 +12,12 @@
  */
 
 import * as fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { Board } from '../boards/schema';
 import type { BoardRegistry } from '../boards/registry';
-import { loadProject } from '../project/loader';
+import { loadProject, PROJECT_FILE_NAME } from '../project/loader';
 import type { FpgaProject } from '../project/schema';
 import type { Toolchain } from '../toolchain/discovery';
 import { resolveToolchain } from '../toolchain/resolve';
@@ -27,10 +28,20 @@ import type { ProgramTarget } from './openFpgaLoader';
 import { failureLine, successLine } from './output';
 import { packBitstream } from './pack';
 import { placeAndRoute } from './placeAndRoute';
-import { detectBoard, program } from './program';
+import { backupFlash, detectBoard, program, programFile } from './program';
 import { synthesize, type PipelineIo } from './synthesize';
 
-const PROGRAM_STAGE = 3;
+interface ProgramSpec {
+	readonly target: ProgramTarget;
+	readonly backup: boolean;
+	/** Absolute path of a user-chosen file to write; when set, the build stages are skipped. */
+	readonly fromFile?: string;
+}
+
+/** The AbortController of the build in progress, so a status-bar button can cancel it. */
+let activeBuild: AbortController | undefined;
+/** Set by registerBuildUi so the run functions can refresh the status bar. */
+let refreshStatusBar: () => void = () => {};
 
 export function registerBuildUi(
 	context: vscode.ExtensionContext,
@@ -54,7 +65,73 @@ export function registerBuildUi(
 			runProgram(output, boards, 'build & program', true),
 		),
 		vscode.commands.registerCommand('openfpga.detectBoard', () => runDetect(output, boards)),
+		vscode.commands.registerCommand('openfpga.writeFileToBoard', () =>
+			runWriteFile(output, boards),
+		),
+		vscode.commands.registerCommand('openfpga.cancelBuild', () => activeBuild?.abort()),
+		vscode.commands.registerCommand('openfpga.buildMenu', () => showBuildMenu()),
 	);
+
+	registerBuildStatusBar(context);
+}
+
+/** A compact icon cluster for the build actions; visible only in an OpenFPGA project. */
+function registerBuildStatusBar(context: vscode.ExtensionContext): void {
+	const make = (priority: number, text: string, command: string, tooltip: string) => {
+		const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, priority);
+		item.text = text;
+		item.command = command;
+		item.tooltip = tooltip;
+		context.subscriptions.push(item);
+		return item;
+	};
+
+	const buttons = [
+		make(88, '$(zap)', 'openfpga.build', 'OpenFPGA Deck: Build'),
+		make(87, '$(rocket)', 'openfpga.buildAndProgram', 'OpenFPGA Deck: Build and Program'),
+		make(86, '$(plug)', 'openfpga.detectBoard', 'OpenFPGA Deck: Detect Board'),
+		make(85, '$(ellipsis)', 'openfpga.buildMenu', 'OpenFPGA Deck: build actions…'),
+	];
+	const cancel = make(84, '$(stop) Cancel', 'openfpga.cancelBuild', 'OpenFPGA Deck: cancel the running build');
+	cancel.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+
+	const inProject = (): boolean => {
+		const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+		return root !== undefined && existsSync(path.join(root, PROJECT_FILE_NAME));
+	};
+
+	refreshStatusBar = (): void => {
+		const show = inProject();
+		for (const b of buttons) {
+			show ? b.show() : b.hide();
+		}
+		show && activeBuild !== undefined ? cancel.show() : cancel.hide();
+	};
+
+	const watcher = vscode.workspace.createFileSystemWatcher(`**/${PROJECT_FILE_NAME}`);
+	context.subscriptions.push(
+		watcher,
+		watcher.onDidCreate(refreshStatusBar),
+		watcher.onDidDelete(refreshStatusBar),
+	);
+	refreshStatusBar();
+}
+
+async function showBuildMenu(): Promise<void> {
+	const items: Array<vscode.QuickPickItem & { command: string }> = [
+		{ label: '$(zap) Build', description: 'synth → P&R → pack', command: 'openfpga.build' },
+		{ label: '$(rocket) Build and Program', command: 'openfpga.buildAndProgram' },
+		{ label: '$(server-process) Synthesize', command: 'openfpga.synthesize' },
+		{ label: '$(circuit-board) Place and Route', command: 'openfpga.placeAndRoute' },
+		{ label: '$(package) Pack Bitstream', command: 'openfpga.packBitstream' },
+		{ label: '$(rocket) Program', command: 'openfpga.program' },
+		{ label: '$(plug) Detect Board', command: 'openfpga.detectBoard' },
+		{ label: '$(file-binary) Write File to Board', command: 'openfpga.writeFileToBoard' },
+	];
+	const pick = await vscode.window.showQuickPick(items, { title: 'OpenFPGA Deck' });
+	if (pick) {
+		await vscode.commands.executeCommand(pick.command);
+	}
 }
 
 interface Prepared {
@@ -134,35 +211,69 @@ async function prepare(
 	};
 }
 
-function stagesFor(ctx: Prepared, programTarget?: ProgramTarget): Stage[] {
+function stagesFor(ctx: Prepared, programSpec?: ProgramSpec): Stage[] {
 	const layout = buildLayout(ctx.root);
 	const tools = ctx.toolchain.tools;
 	const common = { project: ctx.project, board: ctx.board, projectRoot: ctx.root };
-	const stages: Stage[] = [
-		{
-			message: 'synthesizing…',
-			output: path.join(layout.netlistDir, `${ctx.project.top}.json`),
-			run: (io) => synthesize({ ...common, yosysExe: tools.yosys.path }, io),
-		},
-		{
-			message: 'placing & routing…',
-			output: path.join(layout.pnrDir, `${ctx.project.top}.pnr.json`),
-			run: (io) => placeAndRoute({ ...common, nextpnrExe: tools['nextpnr-himbaechel'].path }, io),
-		},
-		{
-			message: 'packing bitstream…',
-			output: path.join(layout.bitstreamDir, `${ctx.project.name}.fs`),
-			run: (io) => packBitstream({ ...common, gowinPackExe: tools.gowin_pack.path }, io),
-		},
-	];
-	if (programTarget) {
+	const openFpgaLoaderExe = tools.openFPGALoader.path;
+	const stages: Stage[] = [];
+
+	// Build the bitstream unless we are writing a file the user picked.
+	if (!programSpec?.fromFile) {
+		stages.push(
+			{
+				message: 'synthesizing…',
+				output: path.join(layout.netlistDir, `${ctx.project.top}.json`),
+				run: (io) => synthesize({ ...common, yosysExe: tools.yosys.path }, io),
+			},
+			{
+				message: 'placing & routing…',
+				output: path.join(layout.pnrDir, `${ctx.project.top}.pnr.json`),
+				run: (io) => placeAndRoute({ ...common, nextpnrExe: tools['nextpnr-himbaechel'].path }, io),
+			},
+			{
+				message: 'packing bitstream…',
+				output: path.join(layout.bitstreamDir, `${ctx.project.name}.fs`),
+				run: (io) => packBitstream({ ...common, gowinPackExe: tools.gowin_pack.path }, io),
+			},
+		);
+	}
+
+	if (programSpec) {
+		if (programSpec.backup) {
+			stages.push({
+				message: 'backing up flash…',
+				run: (io) =>
+					backupFlash(
+						{ board: ctx.board, projectRoot: ctx.root, openFpgaLoaderExe, stamp: timestamp() },
+						io,
+					),
+			});
+		}
+		const message = programSpec.target === 'flash' ? 'writing flash…' : 'loading SRAM…';
 		stages.push({
-			message: programTarget === 'flash' ? 'writing flash…' : 'loading SRAM…',
+			message,
 			run: (io) =>
-				program({ ...common, openFpgaLoaderExe: tools.openFPGALoader.path, target: programTarget }, io),
+				programSpec.fromFile
+					? programFile(
+							{
+								board: ctx.board,
+								projectRoot: ctx.root,
+								openFpgaLoaderExe,
+								filePath: programSpec.fromFile,
+								target: programSpec.target,
+							},
+							io,
+						)
+					: program({ ...common, openFpgaLoaderExe, target: programSpec.target }, io),
 		});
 	}
 	return stages;
+}
+
+/** Filesystem-safe timestamp for backup filenames. */
+function timestamp(): string {
+	return new Date().toISOString().replace(/[:.]/g, '-').replace('Z', '');
 }
 
 function makeIo(signal: AbortSignal, output: vscode.OutputChannel): PipelineIo {
@@ -198,7 +309,95 @@ async function runProgram(
 	if (!target) {
 		return;
 	}
-	await runPipeline(output, boards, title, PROGRAM_STAGE, forceAll, ctx, target);
+
+	let backup = false;
+	if (target === 'flash') {
+		const decision = await confirmFlash(ctx.board);
+		if (decision === 'cancel') {
+			return;
+		}
+		backup = decision === 'backup';
+	}
+
+	await runPipeline(output, boards, title, undefined, forceAll, ctx, { target, backup });
+}
+
+async function runWriteFile(output: vscode.OutputChannel, boards: BoardRegistry): Promise<void> {
+	const ctx = await prepare(output, boards);
+	if (!ctx) {
+		return;
+	}
+
+	const picked = await vscode.window.showOpenDialog({
+		canSelectMany: false,
+		openLabel: 'Write to board',
+		title: 'Select a bitstream (.fs) or flash image (.bin) to write',
+		filters: { 'Bitstream or flash image': ['fs', 'bin'] },
+	});
+	if (!picked || picked.length === 0) {
+		return;
+	}
+	const filePath = picked[0].fsPath;
+
+	// A raw .bin (e.g. a flash backup) only makes sense written to flash.
+	let target: ProgramTarget;
+	if (filePath.toLowerCase().endsWith('.bin')) {
+		target = 'flash';
+	} else {
+		const chosen = await pickTarget(ctx.board);
+		if (!chosen) {
+			return;
+		}
+		target = chosen;
+	}
+
+	let backup = false;
+	if (target === 'flash') {
+		const decision = await confirmFlash(ctx.board);
+		if (decision === 'cancel') {
+			return;
+		}
+		backup = decision === 'backup';
+	}
+
+	await runPipeline(output, boards, 'writing to board', undefined, false, ctx, {
+		target,
+		backup,
+		fromFile: filePath,
+	});
+}
+
+/**
+ * Flashing overwrites whatever is on the board (for the Tang Nano 20K, the
+ * factory image). Offer a backup first when the board tells us its flash
+ * size; otherwise just confirm the overwrite.
+ */
+async function confirmFlash(board: Board): Promise<'backup' | 'skip' | 'cancel'> {
+	if (board.programmer.flashSize) {
+		const pick = await vscode.window.showWarningMessage(
+			`Writing flash replaces the current contents of ${board.name}.`,
+			{
+				modal: true,
+				detail: 'Back up the current flash to build/backup/ first? This reads the whole chip and takes a minute.',
+			},
+			'Back Up & Continue',
+			'Skip Backup',
+		);
+		if (pick === 'Back Up & Continue') {
+			return 'backup';
+		}
+		return pick === 'Skip Backup' ? 'skip' : 'cancel';
+	}
+
+	const pick = await vscode.window.showWarningMessage(
+		`Writing flash replaces the current contents of ${board.name}.`,
+		{
+			modal: true,
+			detail: 'This board definition has no flash size, so OpenFPGA Deck cannot back the flash up first.',
+		},
+		'Continue',
+	);
+	return pick === 'Continue' ? 'skip' : 'cancel';
 }
 
 async function pickTarget(board: Board): Promise<ProgramTarget | undefined> {
@@ -214,105 +413,110 @@ async function pickTarget(board: Board): Promise<ProgramTarget | undefined> {
 	return pick?.value;
 }
 
+/**
+ * Run one exclusive operation: take the build lock, expose its
+ * AbortController to the status-bar Cancel button, and report progress in
+ * the status bar (Window) rather than a notification toast that would
+ * obstruct the Output view.
+ */
+async function runExclusive(
+	output: vscode.OutputChannel,
+	title: string,
+	task: (
+		io: PipelineIo,
+		progress: vscode.Progress<{ message?: string }>,
+	) => Promise<StageResult>,
+): Promise<void> {
+	if (!acquireBuildLock()) {
+		vscode.window.showWarningMessage('OpenFPGA Deck: a build is already running.');
+		return;
+	}
+	const controller = new AbortController();
+	activeBuild = controller;
+	refreshStatusBar();
+
+	output.clear();
+	output.show(true);
+	try {
+		const result = await vscode.window.withProgress(
+			{ location: vscode.ProgressLocation.Window, title: `OpenFPGA Deck: ${title}` },
+			(progress, token) => {
+				token.onCancellationRequested(() => controller.abort());
+				return task(makeIo(controller.signal, output), progress);
+			},
+		);
+		report(output, result);
+	} finally {
+		activeBuild = undefined;
+		refreshStatusBar();
+		releaseBuildLock();
+	}
+}
+
 async function runDetect(output: vscode.OutputChannel, boards: BoardRegistry): Promise<void> {
 	const ctx = await prepare(output, boards);
 	if (!ctx) {
 		return;
 	}
-	if (!acquireBuildLock()) {
-		vscode.window.showWarningMessage('OpenFPGA Deck: a build is already running.');
-		return;
-	}
-	output.clear();
-	output.show(true);
-	try {
-		const result = await vscode.window.withProgress(
-			{ location: vscode.ProgressLocation.Notification, cancellable: true, title: 'OpenFPGA Deck: detecting board' },
-			async (_progress, token) => {
-				const controller = new AbortController();
-				token.onCancellationRequested(() => controller.abort());
-				return detectBoard(
-					{
-						project: ctx.project,
-						board: ctx.board,
-						projectRoot: ctx.root,
-						openFpgaLoaderExe: ctx.toolchain.tools.openFPGALoader.path,
-					},
-					makeIo(controller.signal, output),
-				);
+	await runExclusive(output, 'detecting board', async (io) => {
+		const result = await detectBoard(
+			{
+				project: ctx.project,
+				board: ctx.board,
+				projectRoot: ctx.root,
+				openFpgaLoaderExe: ctx.toolchain.tools.openFPGALoader.path,
 			},
+			io,
 		);
 		if (result.ok) {
 			output.append(successLine(result.summary));
 		} else if (!result.canceled) {
 			output.append(failureLine(result.summary));
 		}
-		report(output, result);
-	} finally {
-		releaseBuildLock();
-	}
+		return result;
+	});
 }
 
 async function runPipeline(
 	output: vscode.OutputChannel,
 	boards: BoardRegistry,
 	title: string,
-	targetIndex: number,
+	targetIndex: number | undefined,
 	forceAll: boolean,
 	prepared?: Prepared,
-	programTarget?: ProgramTarget,
+	programSpec?: ProgramSpec,
 ): Promise<void> {
 	const ctx = prepared ?? (await prepare(output, boards));
 	if (!ctx) {
 		return;
 	}
-	if (!acquireBuildLock()) {
-		vscode.window.showWarningMessage('OpenFPGA Deck: a build is already running.');
-		return;
-	}
+	const stages = stagesFor(ctx, programSpec);
+	// Program commands run through the last stage; stage commands stop at their
+	// explicit index.
+	const target = targetIndex ?? stages.length - 1;
 
-	output.clear();
-	output.show(true);
-	try {
-		const stages = stagesFor(ctx, programTarget);
-		const result = await vscode.window.withProgress(
-			{
-				location: vscode.ProgressLocation.Notification,
-				cancellable: true,
-				title: `OpenFPGA Deck: ${title}`,
-			},
-			async (progress, token) => {
-				const controller = new AbortController();
-				token.onCancellationRequested(() => controller.abort());
-				const io = makeIo(controller.signal, output);
-
-				let last: StageResult = { ok: true, canceled: false, summary: 'Nothing to do.' };
-				for (let i = 0; i <= targetIndex; i++) {
-					const stage = stages[i];
-					const isTarget = i === targetIndex;
-					if (
-						!forceAll &&
-						!isTarget &&
-						stage.output !== undefined &&
-						(await pathExists(stage.output))
-					) {
-						continue;
-					}
-					progress.report({ message: stage.message });
-					last = await stage.run(io);
-					if (!last.ok) {
-						output.append(failureLine(last.summary));
-						return last;
-					}
-					output.append(successLine(last.summary));
-				}
+	await runExclusive(output, title, async (io, progress) => {
+		let last: StageResult = { ok: true, canceled: false, summary: 'Nothing to do.' };
+		for (let i = 0; i <= target; i++) {
+			const stage = stages[i];
+			const isTarget = i === target;
+			if (
+				!forceAll &&
+				!isTarget &&
+				stage.output !== undefined &&
+				(await pathExists(stage.output))
+			) {
+				continue;
+			}
+			progress.report({ message: stage.message });
+			last = await stage.run(io);
+			output.append(last.ok ? successLine(last.summary) : failureLine(last.summary));
+			if (!last.ok) {
 				return last;
-			},
-		);
-		report(output, result);
-	} finally {
-		releaseBuildLock();
-	}
+			}
+		}
+		return last;
+	});
 }
 
 function pathExists(p: string): Promise<boolean> {

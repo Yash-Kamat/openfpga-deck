@@ -25,6 +25,7 @@ programmer:
   tool: openFPGALoader
   board: tangnano20k         # openFPGALoader -b <board>
   defaultTarget: sram        # sram (volatile) | flash (persistent, adds -f)
+  flashSize: 0x800000        # 8 MiB SPI flash — used to back it up before a write
 
 clocks:
   - signal: clk

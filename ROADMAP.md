@@ -34,7 +34,7 @@ them — untested platforms are never claimed as supported.
 | 6 | Place & route (nextpnr-himbaechel) | Done |
 | 7 | Bitstream packing (gowin_pack) | Done |
 | 8a | Programming (openFPGALoader) | Done |
-| 8b | Flash backup before write | Next |
+| 8b | Flash backup & restore | In progress |
 | 9 | Diagnostics (tool logs → editor) | Planned |
 | 10 | Test suite | Ongoing |
 | 11 | CI (GitHub Actions) | Planned |
@@ -116,13 +116,23 @@ The board flag comes from the board definition. openFPGALoader's `\r`
 progress bars are throttled in the output channel; permission / udev
 failures get a pointer to the fix.
 
-### 8b — Flash backup before write — Next
+### 8b — Flash backup & restore — In progress
 
 Before any flash write, offer to dump the current flash contents
 (`--dump-flash --file-size <programmer.flashSize>`) to
 `build/backup/flash-<timestamp>.bin`, so an accidental overwrite of a
 board's factory image is recoverable. Adds `programmer.flashSize` to the
 board schema.
+
+`Write File to Board` completes the loop: pick any `.fs` bitstream or
+`.bin` flash image from anywhere on disk and write it to SRAM or flash —
+used to restore a backup or flash a prebuilt bitstream. Flash writes go
+through the same backup prompt.
+
+The build actions also get a status-bar cluster (Build, Build and Program,
+Detect Board, a "more" menu, and a Cancel button while a build runs);
+progress moves to `ProgressLocation.Window` so the toast stops covering
+the Output view.
 
 ### 9 — Diagnostics — Planned
 
@@ -188,8 +198,9 @@ DevOps retires global PATs on 2026-12-01).
 
 ### Board & programming
 
-- **Flash backup** — Phase 8b lands the backup-before-write prompt; a later
-  pass may keep a rotating set of dumps and add a "restore" command.
+- **Flash backup** — Phase 8b lands the backup-before-write prompt and
+  `Write File to Board`; a later pass may keep a rotating set of dumps and a
+  one-click "restore latest".
 - **Programmer / cable selection** — when more than one board or FTDI cable
   is attached, let the user choose (`openFPGALoader --ftdi-serial` / `-c`)
   instead of assuming the first.

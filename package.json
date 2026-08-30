@@ -78,6 +78,21 @@
         "category": "OpenFPGA Deck"
       },
       {
+        "command": "openfpga.writeFileToBoard",
+        "title": "Write File to Board",
+        "category": "OpenFPGA Deck"
+      },
+      {
+        "command": "openfpga.buildMenu",
+        "title": "Build Actions…",
+        "category": "OpenFPGA Deck"
+      },
+      {
+        "command": "openfpga.cancelBuild",
+        "title": "Cancel Build",
+        "category": "OpenFPGA Deck"
+      },
+      {
         "command": "openfpga.verifyToolchain",
         "title": "Verify Toolchain",
         "category": "OpenFPGA Deck"
@@ -93,6 +108,12 @@
         "category": "OpenFPGA Deck"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        { "command": "openfpga.buildMenu", "when": "false" },
+        { "command": "openfpga.cancelBuild", "when": "false" }
+      ]
+    },
     "configuration": {
       "title": "OpenFPGA Deck",
       "properties": {

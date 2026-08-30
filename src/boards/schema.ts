@@ -59,6 +59,8 @@ export interface Board {
 		/** openFPGALoader `-b <board>`. */
 		readonly board: string;
 		readonly defaultTarget: ProgrammerTarget;
+		/** SPI flash size in bytes, needed to dump the flash for a backup. */
+		readonly flashSize?: number;
 	};
 	readonly clocks: readonly BoardClock[];
 	/** IO attribute defaults applied to every pin unless the pin overrides them. */
@@ -124,6 +126,20 @@ export function validateBoard(raw: unknown): BoardValidation {
 			fail('"programmer.defaultTarget" must be "sram" or "flash".');
 		}
 	}
+	let flashSize: number | undefined;
+	if (progRaw && progRaw.flashSize !== undefined) {
+		const parsed =
+			typeof progRaw.flashSize === 'number'
+				? progRaw.flashSize
+				: typeof progRaw.flashSize === 'string'
+					? Number(progRaw.flashSize)
+					: NaN;
+		if (Number.isInteger(parsed) && parsed > 0) {
+			flashSize = parsed;
+		} else {
+			fail('"programmer.flashSize" must be a positive integer number of bytes (e.g. 0x800000).');
+		}
+	}
 
 	const clocks = validateClocks(raw.clocks, fail);
 	const defaults = isObject(raw.defaults)
@@ -147,6 +163,7 @@ export function validateBoard(raw: unknown): BoardValidation {
 				tool: progTool as string,
 				board: progBoard as string,
 				defaultTarget: target,
+				flashSize,
 			},
 			clocks,
 			defaults,

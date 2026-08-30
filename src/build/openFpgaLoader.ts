@@ -59,6 +59,43 @@ export function detectArgs(board: Board): readonly string[] {
 	return ['-b', board.programmer.board, '--detect'];
 }
 
+/**
+ * Arguments to write an arbitrary file the user pointed at — a `.fs`
+ * bitstream or a `.bin` flash image (e.g. a backup being restored). The path
+ * is passed through as given (it may be outside the project).
+ */
+export function programFileArgs(
+	board: Board,
+	filePath: string,
+	target: ProgramTarget,
+): readonly string[] {
+	const args = ['-b', board.programmer.board];
+	if (target === 'flash') {
+		args.push('-f');
+	}
+	args.push(filePath);
+	return args;
+}
+
+/**
+ * Arguments to dump the whole SPI flash to `destRelPath` (relative to the
+ * project root). `sizeBytes` comes from `board.programmer.flashSize`.
+ */
+export function dumpFlashArgs(
+	board: Board,
+	destRelPath: string,
+	sizeBytes: number,
+): readonly string[] {
+	return [
+		'-b',
+		board.programmer.board,
+		'--dump-flash',
+		'--file-size',
+		`0x${sizeBytes.toString(16)}`,
+		destRelPath,
+	];
+}
+
 /** Pull the chip identity out of `openFPGALoader --detect` output, if present. */
 export function parseDetect(text: string): string | undefined {
 	const idcode = /idcode\s+(0x[0-9a-f]+)/i.exec(text)?.[1];

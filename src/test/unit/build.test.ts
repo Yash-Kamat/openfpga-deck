@@ -14,18 +14,18 @@ import { placeAndRoute } from '../../build/placeAndRoute';
 import { packBitstream } from '../../build/pack';
 import { formatPnrReport, parsePnrReport } from '../../build/pnrReport';
 import { isNoise, makeLineFilter } from '../../build/output';
-import { parseDetect, planProgram } from '../../build/openFpgaLoader';
-import { detectBoard, program } from '../../build/program';
+import { dumpFlashArgs, parseDetect, planProgram, programFileArgs } from '../../build/openFpgaLoader';
+import { backupFlash, detectBoard, program, programFile } from '../../build/program';
 
 const ROOT = '/home/dev/blinky';
 
-function board(): Board {
+function board(extraProgrammer: Record<string, unknown> = {}): Board {
 	const result = validateBoard({
 		id: 'demo',
 		name: 'Demo Board',
 		fpga: { part: 'GW2AR-LV18QN88C8/I7', family: 'GW2A-18C' },
 		synth: { family: 'gw2a' },
-		programmer: { board: 'demo' },
+		programmer: { board: 'demo', ...extraProgrammer },
 		defaults: { iostd: 'LVCMOS33' },
 		clocks: [{ signal: 'clk', mhz: 27 }],
 		pins: { clk: { loc: '4' } },
@@ -313,6 +313,35 @@ describe('program / detectBoard', () => {
 		assert.match(result.summary, /udev rules/);
 	});
 
+	it('programFileArgs passes the path through as given (may be outside the project)', () => {
+		assert.deepEqual(programFileArgs(board(), '/home/yash/backups/factory.bin', 'flash'), [
+			'-b',
+			'demo',
+			'-f',
+			'/home/yash/backups/factory.bin',
+		]);
+		assert.deepEqual(programFileArgs(board(), '/tmp/foo.fs', 'sram'), ['-b', 'demo', '/tmp/foo.fs']);
+	});
+
+	it('programFile writes a user-chosen file and names it in the summary', async () => {
+		const h = io({ code: 0, signal: null });
+		const result = await programFile(
+			{ ...base, filePath: '/tmp/factory.bin', target: 'flash' },
+			h,
+		);
+		assert.equal(result.ok, true);
+		assert.match(result.summary, /factory\.bin/);
+		assert.equal(h.calls[0].args.at(-1), '/tmp/factory.bin');
+	});
+
+	it('programFile fails clearly when the file is missing', async () => {
+		const h = io({ code: 0, signal: null }, '', { bitstream: false });
+		const result = await programFile({ ...base, filePath: '/tmp/nope.fs', target: 'sram' }, h);
+		assert.equal(result.ok, false);
+		assert.match(result.summary, /File not found/);
+		assert.equal(h.calls.length, 0);
+	});
+
 	it('detectBoard reports the chip identity on success', async () => {
 		const h = io({ code: 0, signal: null }, 'idcode 0x81b\nmodel  GW2A(R)-18(C)\n');
 		const result = await detectBoard(base, h);
@@ -325,6 +354,60 @@ describe('program / detectBoard', () => {
 		const result = await detectBoard(base, h);
 		assert.equal(result.ok, false);
 		assert.match(result.summary, /check the USB cable/);
+	});
+});
+
+describe('flash backup', () => {
+	it('dumpFlashArgs renders the size as hex', () => {
+		assert.deepEqual(dumpFlashArgs(board({ flashSize: 0x800000 }), 'build/backup/flash-x.bin', 0x800000), [
+			'-b',
+			'demo',
+			'--dump-flash',
+			'--file-size',
+			'0x800000',
+			'build/backup/flash-x.bin',
+		]);
+	});
+
+	function io(runResult: ProcessResult): SynthesizeIo & { calls: ProcessSpec[]; dirs: string[] } {
+		const calls: ProcessSpec[] = [];
+		const dirs: string[] = [];
+		return {
+			calls,
+			dirs,
+			run: async (spec) => {
+				calls.push(spec);
+				return runResult;
+			},
+			mkdirp: async (d) => {
+				dirs.push(d);
+			},
+			writeFile: async () => {},
+			write: () => {},
+			exists: async () => true,
+		};
+	}
+
+	const base = {
+		projectRoot: ROOT,
+		openFpgaLoaderExe: '/opt/oss/bin/openFPGALoader',
+		stamp: '2026-08-30T02-41-05',
+	};
+
+	it('dumps the flash to build/backup and reports the path', async () => {
+		const h = io({ code: 0, signal: null });
+		const result = await backupFlash({ ...base, board: board({ flashSize: 0x800000 }) }, h);
+		assert.equal(result.ok, true);
+		assert.equal(result.backupPath, path.join(ROOT, 'build', 'backup', 'flash-2026-08-30T02-41-05.bin'));
+		assert.ok(h.dirs.includes(path.join(ROOT, 'build', 'backup')));
+	});
+
+	it('fails when the board has no flash size', async () => {
+		const h = io({ code: 0, signal: null });
+		const result = await backupFlash({ ...base, board: board() }, h);
+		assert.equal(result.ok, false);
+		assert.match(result.summary, /no programmer\.flashSize/);
+		assert.equal(h.calls.length, 0);
 	});
 });
 
