@@ -14,8 +14,7 @@ write HDL  →  Synthesize (Yosys)  →  Place & Route (nextpnr-himbaechel)
 More boards and families are planned.
 
 > Status: **v0.1** — the vertical slice works end to end and is verified on
-> real hardware. It is deliberately small; see the
-> [roadmap](https://github.com/openfpga-deck/openfpga-deck/blob/main/ROADMAP.md).
+> real hardware. It is deliberately small; see the [roadmap](ROADMAP.md).
 
 ## What it does
 
