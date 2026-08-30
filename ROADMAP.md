@@ -34,8 +34,8 @@ them — untested platforms are never claimed as supported.
 | 6 | Place & route (nextpnr-himbaechel) | Done |
 | 7 | Bitstream packing (gowin_pack) | Done |
 | 8a | Programming (openFPGALoader) | Done |
-| 8b | Flash backup & restore | In progress |
-| 9 | Diagnostics (tool logs → editor) | Planned |
+| 8b | Flash backup & restore | Done |
+| 9 | Diagnostics (tool logs → editor) | Next |
 | 10 | Test suite | Ongoing |
 | 11 | CI (GitHub Actions) | Planned |
 | 12 | Documentation | Planned |
@@ -116,7 +116,7 @@ The board flag comes from the board definition. openFPGALoader's `\r`
 progress bars are throttled in the output channel; permission / udev
 failures get a pointer to the fix.
 
-### 8b — Flash backup & restore — In progress
+### 8b — Flash backup & restore — Done
 
 Before any flash write, offer to dump the current flash contents
 (`--dump-flash --file-size <programmer.flashSize>`) to
@@ -134,7 +134,7 @@ Detect Board, a "more" menu, and a Cancel button while a build runs);
 progress moves to `ProgressLocation.Window` so the toast stops covering
 the Output view.
 
-### 9 — Diagnostics — Planned
+### 9 — Diagnostics — Next
 
 Best-effort regex parsing of Yosys and nextpnr logs into `vscode.Diagnostic`s
 anchored to the right source lines. Not a full parser.
