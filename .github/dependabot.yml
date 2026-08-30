@@ -1,13 +1,18 @@
 version: 2
 updates:
+  # Security fixes matter here (the `yaml` runtime dep, CI actions); routine
+  # version bumps do not need to be noisy, so: monthly, one PR per ecosystem.
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     groups:
-      dev-dependencies:
-        dependency-type: development
+      npm:
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
