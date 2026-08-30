@@ -91,4 +91,6 @@ Tang Nano 20K pin data cross-checked against Sipeed's examples and
 
 ## License
 
-[Apache-2.0](LICENSE).
+[Apache-2.0](LICENSE). Forks and derivative works — including anything
+republished to a marketplace — must retain the attribution in
+[NOTICE](NOTICE) per the license.
