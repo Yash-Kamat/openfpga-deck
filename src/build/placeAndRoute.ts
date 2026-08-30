@@ -12,6 +12,7 @@ import type { Board } from '../boards/schema';
 import type { FpgaProject } from '../project/schema';
 import { buildLayout } from './layout';
 import { planNextpnr } from './nextpnr';
+import { formatPnrReport, parsePnrReport } from './pnrReport';
 import { runStep } from './runStep';
 import type { PipelineIo } from './synthesize';
 
@@ -55,13 +56,10 @@ export async function placeAndRoute(
 
 	await io.mkdirp(layout.pnrDir);
 	await io.mkdirp(layout.logDir);
+	await io.mkdirp(layout.reportDir);
 	if (io.remove) {
 		await io.remove(plan.pnrJsonPath).catch(() => undefined);
 	}
-
-	io.write(`Place & route — ${req.project.top} on ${req.board.fpga.part}\n`);
-	io.write(`  netlist: ${plan.netlistInRelPath}\n`);
-	io.write(`  output:  ${plan.pnrJsonRelPath}\n`);
 
 	const outcome = await runStep(
 		{
@@ -88,6 +86,19 @@ export async function placeAndRoute(
 			logFile,
 			summary: `nextpnr exited cleanly but wrote no netlist at ${plan.pnrJsonRelPath}.`,
 		};
+	}
+
+	if (io.readFile) {
+		const summary = await io
+			.readFile(plan.reportPath)
+			.then(parsePnrReport)
+			.catch(() => undefined);
+		if (summary) {
+			io.write('\n');
+			for (const line of formatPnrReport(summary)) {
+				io.write(`${line}\n`);
+			}
+		}
 	}
 
 	return {

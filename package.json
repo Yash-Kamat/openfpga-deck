@@ -53,6 +53,16 @@
         "category": "OpenFPGA Deck"
       },
       {
+        "command": "openfpga.packBitstream",
+        "title": "Pack Bitstream",
+        "category": "OpenFPGA Deck"
+      },
+      {
+        "command": "openfpga.build",
+        "title": "Build",
+        "category": "OpenFPGA Deck"
+      },
+      {
         "command": "openfpga.verifyToolchain",
         "title": "Verify Toolchain",
         "category": "OpenFPGA Deck"

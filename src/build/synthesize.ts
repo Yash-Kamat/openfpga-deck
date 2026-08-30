@@ -34,6 +34,8 @@ export interface PipelineIo {
 	readonly exists?: (file: string) => Promise<boolean>;
 	/** Optional: delete a stale output before the run. */
 	readonly remove?: (file: string) => Promise<void>;
+	/** Optional: read a text file back (used for the nextpnr report). */
+	readonly readFile?: (file: string) => Promise<string>;
 	readonly signal?: AbortSignal;
 }
 
@@ -66,10 +68,6 @@ export async function synthesize(
 	if (io.remove) {
 		await io.remove(plan.netlistPath).catch(() => undefined);
 	}
-
-	io.write(`Synthesis — ${req.project.top} for ${req.board.name}\n`);
-	io.write(`  script:  ${plan.scriptRelPath}\n`);
-	io.write(`  netlist: ${plan.netlistRelPath}\n`);
 
 	const outcome = await runStep(
 		{

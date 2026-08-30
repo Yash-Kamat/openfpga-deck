@@ -8,7 +8,12 @@
  * result-handling logic — exit code, cancellation, spawn failure, log
  * capture — is unit-tested without starting real processes. The real runner
  * lives in nodeProcess.ts.
+ *
+ * Channel output is line-buffered so noise filtering (see output.ts) can work
+ * a line at a time; the log file always gets the raw, unfiltered stream.
  */
+
+import { commandLine, isNoise, stageHeader } from './output';
 
 export interface ProcessSpec {
 	readonly exe: string;
@@ -61,9 +66,17 @@ export interface StepOutcome {
 }
 
 export async function runStep(step: StepSpec, io: StepIo): Promise<StepOutcome> {
-	io.write(`\n$ ${step.tool} ${step.args.join(' ')}\n`);
+	io.write(stageHeader(step.name));
+	io.write(commandLine(step.tool, step.args));
 
 	let captured = '';
+	let pending = '';
+	const emit = (line: string): void => {
+		if (!isNoise(line)) {
+			io.write(`${line}\n`);
+		}
+	};
+
 	const result = await io.run({
 		exe: step.exe,
 		args: step.args,
@@ -71,9 +84,17 @@ export async function runStep(step: StepSpec, io: StepIo): Promise<StepOutcome> 
 		signal: step.signal,
 		onChunk: (text) => {
 			captured += text;
-			io.write(text);
+			pending += text;
+			const lines = pending.split('\n');
+			pending = lines.pop() ?? '';
+			for (const line of lines) {
+				emit(line);
+			}
 		},
 	});
+	if (pending !== '') {
+		emit(pending);
+	}
 
 	await io.writeFile(step.logFile, captured).catch(() => undefined);
 

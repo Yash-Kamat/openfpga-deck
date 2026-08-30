@@ -6,10 +6,14 @@ import type { FpgaProject } from '../../project/schema';
 import { buildDirs, buildLayout } from '../../build/layout';
 import { planYosys } from '../../build/yosys';
 import { planNextpnr } from '../../build/nextpnr';
+import { planGowinPack } from '../../build/gowinPack';
 import { runStep, type ProcessResult, type ProcessSpec } from '../../build/runStep';
 import { acquireBuildLock, isBuildRunning, releaseBuildLock } from '../../build/lock';
 import { synthesize, type SynthesizeIo } from '../../build/synthesize';
 import { placeAndRoute } from '../../build/placeAndRoute';
+import { packBitstream } from '../../build/pack';
+import { formatPnrReport, parsePnrReport } from '../../build/pnrReport';
+import { isNoise } from '../../build/output';
 
 const ROOT = '/home/dev/blinky';
 
@@ -100,10 +104,14 @@ describe('planNextpnr', () => {
 			'family=GW2A-18C',
 			'--vopt',
 			'cst=constraints/top.cst',
+			'--freq',
+			'27',
 			'--json',
 			'build/yosys/top.json',
 			'--write',
 			'build/pnr/top.pnr.json',
+			'--report',
+			'build/reports/pnr.json',
 		]);
 		assert.equal(result.plan.pnrJsonPath, path.join(ROOT, 'build', 'pnr', 'top.pnr.json'));
 	});
@@ -125,6 +133,75 @@ describe('planNextpnr', () => {
 		const p: FpgaProject = { ...project(['src/top.v']), constraints: ['constraints/pins.txt'] };
 		const result = planNextpnr(p, board(), ROOT);
 		assert.equal(result.ok, false);
+	});
+
+	it('omits --freq when the board declares no clock', () => {
+		const b = validateBoard({
+			id: 'noclk',
+			name: 'No Clock',
+			fpga: { part: 'X', family: 'GW2A-18C' },
+			synth: { family: 'gw2a' },
+			programmer: { board: 'x' },
+			defaults: {},
+			pins: {},
+		});
+		assert.ok(b.ok);
+		if (b.ok) {
+			const result = planNextpnr(project(['src/top.v']), b.board, ROOT);
+			assert.ok(result.ok);
+			if (result.ok) {
+				assert.equal(result.plan.args.includes('--freq'), false);
+			}
+		}
+	});
+});
+
+describe('planGowinPack', () => {
+	it('builds -d <family> -o <name>.fs <pnr netlist>', () => {
+		const result = planGowinPack(project(['src/top.v']), board(), ROOT);
+		assert.equal(result.ok, true);
+		if (!result.ok) {
+			return;
+		}
+		assert.deepEqual(result.plan.args, [
+			'-d',
+			'GW2A-18C',
+			'-o',
+			'build/bitstream/blinky.fs',
+			'build/pnr/top.pnr.json',
+		]);
+		assert.equal(result.plan.bitstreamPath, path.join(ROOT, 'build', 'bitstream', 'blinky.fs'));
+	});
+});
+
+describe('parsePnrReport', () => {
+	it('reads utilisation and fmax, tolerating key variants', () => {
+		const report = parsePnrReport(
+			JSON.stringify({
+				utilization: { LUT4: { used: 4, available: 20736 }, DFF: { used: 25, available: 20736 } },
+				fmax: { clk: { achieved: 439.37, constraint: 27 } },
+			}),
+		);
+		assert.ok(report);
+		assert.equal(report.resources.length, 2);
+		assert.equal(report.fmax[0].clock, 'clk');
+		assert.equal(report.fmax[0].achievedMhz, 439.37);
+		const lines = formatPnrReport(report);
+		assert.ok(lines.some((l) => /LUT4\s+4 \/ 20736/.test(l)));
+		assert.ok(lines.some((l) => /Fmax clk: 439\.37 MHz \(target 27\.00 MHz\)/.test(l)));
+	});
+
+	it('returns undefined for non-JSON', () => {
+		assert.equal(parsePnrReport('not json at all'), undefined);
+	});
+});
+
+describe('isNoise', () => {
+	it('matches the apycula performance warnings only', () => {
+		assert.equal(isNoise('UserWarning: Numpy is not available, performance will be degraded'), true);
+		assert.equal(isNoise('  warnings.warn("Msgspec is not available, performance will be degraded.")'), true);
+		assert.equal(isNoise('Info: Device utilisation:'), false);
+		assert.equal(isNoise('ERROR: constraint file not found'), false);
 	});
 });
 
@@ -182,6 +259,28 @@ describe('runStep', () => {
 		assert.equal(outcome.ok, true);
 		assert.equal(written[base.logFile], 'Yosys 0.68\n... done\n');
 		assert.equal(runner.calls[0].args[1], 'build/yosys/synth.ys');
+	});
+
+	it('hides known-noise lines from the channel but keeps them in the log', async () => {
+		const noisy =
+			'.../apycula/bitmatrix.py:60: UserWarning: Numpy is not available, performance will be degraded.\n' +
+			'  warnings.warn("Numpy is not available, performance will be degraded.")\n' +
+			'Bitstream generated.\n';
+		const runner = fakeRunner({ code: 0, signal: null }, noisy);
+		let channel = '';
+		let logged = '';
+		await runStep(base, {
+			run: runner.run,
+			write: (t) => {
+				channel += t;
+			},
+			writeFile: async (_f, t) => {
+				logged = t;
+			},
+		});
+		assert.doesNotMatch(channel, /performance will be degraded/);
+		assert.match(channel, /Bitstream generated\./);
+		assert.equal(logged, noisy);
 	});
 
 	it('fails with the exit code and log label on a non-zero exit', async () => {
@@ -349,5 +448,58 @@ describe('placeAndRoute', () => {
 		const result = await placeAndRoute(req, h);
 		assert.equal(result.ok, false);
 		assert.match(result.summary, /no netlist/);
+	});
+});
+
+describe('packBitstream', () => {
+	function io(
+		runResult: ProcessResult,
+		opts: { pnrIn?: boolean; fsOut?: boolean } = {},
+	): SynthesizeIo & { calls: ProcessSpec[] } {
+		const calls: ProcessSpec[] = [];
+		const pnrIn = opts.pnrIn ?? true;
+		const fsOut = opts.fsOut ?? true;
+		return {
+			calls,
+			run: async (spec) => {
+				calls.push(spec);
+				return runResult;
+			},
+			mkdirp: async () => {},
+			writeFile: async () => {},
+			write: () => {},
+			exists: async (file) =>
+				file.endsWith('.pnr.json') ? pnrIn : file.endsWith('.fs') ? fsOut : true,
+		};
+	}
+
+	const req = {
+		project: project(['src/top.v']),
+		board: board(),
+		projectRoot: ROOT,
+		gowinPackExe: '/opt/oss/bin/gowin_pack',
+	};
+
+	it('runs gowin_pack and returns the bitstream path', async () => {
+		const h = io({ code: 0, signal: null });
+		const result = await packBitstream(req, h);
+		assert.equal(result.ok, true);
+		assert.equal(result.bitstreamPath, path.join(ROOT, 'build', 'bitstream', 'blinky.fs'));
+		assert.equal(h.calls[0].exe, '/opt/oss/bin/gowin_pack');
+	});
+
+	it('refuses to run without the P&R netlist', async () => {
+		const h = io({ code: 0, signal: null }, { pnrIn: false });
+		const result = await packBitstream(req, h);
+		assert.equal(result.ok, false);
+		assert.match(result.summary, /run Place and Route first/);
+		assert.equal(h.calls.length, 0);
+	});
+
+	it('fails when gowin_pack writes no bitstream', async () => {
+		const h = io({ code: 0, signal: null }, { fsOut: false });
+		const result = await packBitstream(req, h);
+		assert.equal(result.ok, false);
+		assert.match(result.summary, /no bitstream/);
 	});
 });

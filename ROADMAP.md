@@ -32,8 +32,8 @@ them — untested platforms are never claimed as supported.
 | 4b | "Initialize Project" wizard | Done |
 | 5 | Synthesis (Yosys) | Done |
 | 6 | Place & route (nextpnr-himbaechel) | Done |
-| 7 | Bitstream packing (gowin_pack) | Next |
-| 8 | Programming (openFPGALoader) | Planned |
+| 7 | Bitstream packing (gowin_pack) | Done |
+| 8 | Programming (openFPGALoader) | Next |
 | 9 | Diagnostics (tool logs → editor) | Planned |
 | 10 | Test suite | Ongoing |
 | 11 | CI (GitHub Actions) | Planned |
@@ -101,12 +101,12 @@ Run `nextpnr-himbaechel` with the device string, `--vopt family=…`, and the
 `.cst` constraints to produce a placed-and-routed netlist. The per-family
 argument model is first-class (Gowin/Himbaechel first).
 
-### 7 — Bitstream packing — Next
+### 7 — Bitstream packing — Done
 
 Run `gowin_pack` to produce the `.fs` bitstream. Surface a resource-usage
 report to the user.
 
-### 8 — Programming (openFPGALoader) — Planned
+### 8 — Programming (openFPGALoader) — Next
 
 `Program` and `Build and Program`: `openFPGALoader -b tangnano20k` for SRAM
 or `-f` for SPI flash, with the board flag from the board definition. USB
