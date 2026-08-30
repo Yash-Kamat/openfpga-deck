@@ -33,7 +33,8 @@ them — untested platforms are never claimed as supported.
 | 5 | Synthesis (Yosys) | Done |
 | 6 | Place & route (nextpnr-himbaechel) | Done |
 | 7 | Bitstream packing (gowin_pack) | Done |
-| 8 | Programming (openFPGALoader) | Next |
+| 8a | Programming (openFPGALoader) | In progress |
+| 8b | Flash backup before write | Planned |
 | 9 | Diagnostics (tool logs → editor) | Planned |
 | 10 | Test suite | Ongoing |
 | 11 | CI (GitHub Actions) | Planned |
@@ -106,11 +107,22 @@ argument model is first-class (Gowin/Himbaechel first).
 Run `gowin_pack` to produce the `.fs` bitstream. Surface a resource-usage
 report to the user.
 
-### 8 — Programming (openFPGALoader) — Next
+### 8a — Programming (openFPGALoader) — In progress
 
-`Program` and `Build and Program`: `openFPGALoader -b tangnano20k` for SRAM
-or `-f` for SPI flash, with the board flag from the board definition. USB
-device detection.
+`Program` (a prompt for SRAM, volatile, or SPI flash, persistent — defaulting
+to the board's target), `Build and Program` (the full slice), and
+`Detect Board` (`openFPGALoader -b <board> --detect`, used as a preflight).
+The board flag comes from the board definition. openFPGALoader's `\r`
+progress bars are throttled in the output channel; permission / udev
+failures get a pointer to the fix.
+
+### 8b — Flash backup before write — Planned
+
+Before any flash write, offer to dump the current flash contents
+(`--dump-flash --file-size <programmer.flashSize>`) to
+`build/backup/flash-<timestamp>.bin`, so an accidental overwrite of a
+board's factory image is recoverable. Adds `programmer.flashSize` to the
+board schema.
 
 ### 9 — Diagnostics — Planned
 

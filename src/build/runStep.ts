@@ -13,7 +13,7 @@
  * a line at a time; the log file always gets the raw, unfiltered stream.
  */
 
-import { commandLine, isNoise, stageHeader } from './output';
+import { commandLine, makeLineFilter, stageHeader } from './output';
 
 export interface ProcessSpec {
 	readonly exe: string;
@@ -71,8 +71,9 @@ export async function runStep(step: StepSpec, io: StepIo): Promise<StepOutcome> 
 
 	let captured = '';
 	let pending = '';
+	const keep = makeLineFilter();
 	const emit = (line: string): void => {
-		if (!isNoise(line)) {
+		if (keep(line)) {
 			io.write(`${line}\n`);
 		}
 	};
@@ -85,7 +86,8 @@ export async function runStep(step: StepSpec, io: StepIo): Promise<StepOutcome> 
 		onChunk: (text) => {
 			captured += text;
 			pending += text;
-			const lines = pending.split('\n');
+			// Split on CR too: openFPGALoader draws progress bars with \r.
+			const lines = pending.split(/\r\n|[\r\n]/);
 			pending = lines.pop() ?? '';
 			for (const line of lines) {
 				emit(line);

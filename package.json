@@ -63,6 +63,21 @@
         "category": "OpenFPGA Deck"
       },
       {
+        "command": "openfpga.program",
+        "title": "Program",
+        "category": "OpenFPGA Deck"
+      },
+      {
+        "command": "openfpga.buildAndProgram",
+        "title": "Build and Program",
+        "category": "OpenFPGA Deck"
+      },
+      {
+        "command": "openfpga.detectBoard",
+        "title": "Detect Board",
+        "category": "OpenFPGA Deck"
+      },
+      {
         "command": "openfpga.verifyToolchain",
         "title": "Verify Toolchain",
         "category": "OpenFPGA Deck"

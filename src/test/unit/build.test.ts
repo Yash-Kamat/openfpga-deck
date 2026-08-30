@@ -13,7 +13,9 @@ import { synthesize, type SynthesizeIo } from '../../build/synthesize';
 import { placeAndRoute } from '../../build/placeAndRoute';
 import { packBitstream } from '../../build/pack';
 import { formatPnrReport, parsePnrReport } from '../../build/pnrReport';
-import { isNoise } from '../../build/output';
+import { isNoise, makeLineFilter } from '../../build/output';
+import { parseDetect, planProgram } from '../../build/openFpgaLoader';
+import { detectBoard, program } from '../../build/program';
 
 const ROOT = '/home/dev/blinky';
 
@@ -202,6 +204,127 @@ describe('isNoise', () => {
 		assert.equal(isNoise('  warnings.warn("Msgspec is not available, performance will be degraded.")'), true);
 		assert.equal(isNoise('Info: Device utilisation:'), false);
 		assert.equal(isNoise('ERROR: constraint file not found'), false);
+	});
+});
+
+describe('makeLineFilter', () => {
+	it('thins progress-bar lines to one per 10% plus the final 100%', () => {
+		const keep = makeLineFilter();
+		const shown = [2, 4, 9, 11, 19, 45, 46, 99, 100]
+			.map((p) => `Writing: [==] ${p}.00%`)
+			.filter(keep);
+		assert.deepEqual(shown, [
+			'Writing: [==] 2.00%',
+			'Writing: [==] 11.00%',
+			'Writing: [==] 45.00%',
+			'Writing: [==] 99.00%',
+			'Writing: [==] 100.00%',
+		]);
+	});
+
+	it('always keeps non-progress, non-noise lines', () => {
+		const keep = makeLineFilter();
+		assert.equal(keep('Erasing flash'), true);
+		assert.equal(keep('Done'), true);
+	});
+});
+
+describe('planProgram', () => {
+	it('SRAM: -b <board> <bitstream>', () => {
+		const result = planProgram(project(['src/top.v']), board(), ROOT, 'sram');
+		assert.ok(result.ok);
+		if (result.ok) {
+			assert.deepEqual(result.plan.args, ['-b', 'demo', 'build/bitstream/blinky.fs']);
+		}
+	});
+
+	it('flash: adds -f', () => {
+		const result = planProgram(project(['src/top.v']), board(), ROOT, 'flash');
+		assert.ok(result.ok);
+		if (result.ok) {
+			assert.deepEqual(result.plan.args, ['-b', 'demo', '-f', 'build/bitstream/blinky.fs']);
+		}
+	});
+});
+
+describe('parseDetect', () => {
+	it('extracts model and idcode from openFPGALoader --detect output', () => {
+		const text =
+			'Jtag frequency : requested 6.00MHz -> real 6.00MHz\n' +
+			'index 0:\n\tidcode 0x81b\n\tmanufacturer Gowin\n\tfamily GW2A\n\tmodel  GW2A(R)-18(C)\n\tirlength 8\n';
+		assert.equal(parseDetect(text), 'GW2A(R)-18(C) (idcode 0x81b)');
+	});
+
+	it('returns undefined when nothing matched', () => {
+		assert.equal(parseDetect('cable not found'), undefined);
+	});
+});
+
+describe('program / detectBoard', () => {
+	function io(
+		runResult: ProcessResult,
+		output = '',
+		opts: { bitstream?: boolean } = {},
+	): SynthesizeIo & { calls: ProcessSpec[] } {
+		const calls: ProcessSpec[] = [];
+		return {
+			calls,
+			run: async (spec) => {
+				calls.push(spec);
+				if (output) {
+					spec.onChunk(output);
+				}
+				return runResult;
+			},
+			mkdirp: async () => {},
+			writeFile: async () => {},
+			write: () => {},
+			exists: async () => opts.bitstream ?? true,
+		};
+	}
+
+	const base = {
+		project: project(['src/top.v']),
+		board: board(),
+		projectRoot: ROOT,
+		openFpgaLoaderExe: '/opt/oss/bin/openFPGALoader',
+	};
+
+	it('programs SRAM and reports it is running', async () => {
+		const h = io({ code: 0, signal: null });
+		const result = await program({ ...base, target: 'sram' }, h);
+		assert.equal(result.ok, true);
+		assert.match(result.summary, /SRAM/);
+		assert.equal(h.calls[0].exe, '/opt/oss/bin/openFPGALoader');
+	});
+
+	it('refuses to program without a bitstream', async () => {
+		const h = io({ code: 0, signal: null }, '', { bitstream: false });
+		const result = await program({ ...base, target: 'flash' }, h);
+		assert.equal(result.ok, false);
+		assert.match(result.summary, /run Build first/);
+		assert.equal(h.calls.length, 0);
+	});
+
+	it('adds a udev hint when the tool output looks like a permissions error', async () => {
+		const h = io({ code: 1, signal: null }, 'error: unable to open ftdi device: permission denied\n');
+		const result = await program({ ...base, target: 'sram' }, h);
+		assert.equal(result.ok, false);
+		assert.match(result.summary, /udev rules/);
+	});
+
+	it('detectBoard reports the chip identity on success', async () => {
+		const h = io({ code: 0, signal: null }, 'idcode 0x81b\nmodel  GW2A(R)-18(C)\n');
+		const result = await detectBoard(base, h);
+		assert.equal(result.ok, true);
+		assert.match(result.summary, /GW2A\(R\)-18\(C\)/);
+	});
+
+	it('detectBoard fails cleanly when the cable is absent', async () => {
+		const h = io({ code: 1, signal: null }, 'JTAG init failed\n');
+		const result = await detectBoard(base, h);
+		assert.equal(result.ok, false);
+		assert.match(result.summary, /check the USB cable/);
 	});
 });
 

@@ -24,6 +24,35 @@ export function isNoise(line: string): boolean {
 	return NOISE_PATTERNS.some((re) => re.test(line));
 }
 
+const PERCENT_RE = /(\d{1,3})(?:\.\d+)?%/;
+
+/**
+ * A stateful per-run filter for the output channel: drops {@link isNoise}
+ * lines outright, and thins `openFPGALoader`'s carriage-return progress bars
+ * down to one line per 10 % (plus the final 100 %). The log file is never
+ * filtered.
+ */
+export function makeLineFilter(): (line: string) => boolean {
+	let lastBucket = -1;
+	return (line) => {
+		if (isNoise(line)) {
+			return false;
+		}
+		const match = PERCENT_RE.exec(line);
+		if (!match) {
+			lastBucket = -1;
+			return true;
+		}
+		const percent = Number(match[1]);
+		const bucket = Math.floor(percent / 10);
+		if (percent >= 100 || bucket !== lastBucket) {
+			lastBucket = bucket;
+			return true;
+		}
+		return false;
+	};
+}
+
 /** A full-width rule + name to separate pipeline stages in the channel. */
 export function stageHeader(name: string): string {
 	const label = ` ${name} `;
