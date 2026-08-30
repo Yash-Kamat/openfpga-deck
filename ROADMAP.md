@@ -35,12 +35,15 @@ them — untested platforms are never claimed as supported.
 | 7 | Bitstream packing (gowin_pack) | Done |
 | 8a | Programming (openFPGALoader) | Done |
 | 8b | Flash backup & restore | Done |
-| 9 | Diagnostics (tool logs → editor) | Next |
-| 10 | Test suite | Ongoing |
-| 11 | CI (GitHub Actions) | Planned |
-| 12 | Documentation | Planned |
-| 13 | VSIX packaging | Planned |
-| 14 | Marketplace publishing | Planned |
+| 9 | Docs + release metadata | Next |
+| 10 | CI (GitHub Actions) | Planned |
+| 11 | VSIX packaging | Planned |
+| 12 | Marketplace publishing | Planned |
+
+Everything past the working vertical slice that is not needed to *ship*
+has moved to [v0.2 and beyond](#v02-and-beyond): log → Problems-panel
+diagnostics, a formalised test/integration pass, esbuild bundling. The
+priority is a published, working v0.1; polish follows.
 
 ## v0.1 phases
 
@@ -134,33 +137,24 @@ Detect Board, a "more" menu, and a Cancel button while a build runs);
 progress moves to `ProgressLocation.Window` so the toast stops covering
 the Output view.
 
-### 9 — Diagnostics — Next
+### 9 — Docs + release metadata — Next
 
-Best-effort regex parsing of Yosys and nextpnr logs into `vscode.Diagnostic`s
-anchored to the right source lines. Not a full parser.
+`README.md` (the Marketplace listing), `CHANGELOG.md`, `SECURITY.md`,
+`CONTRIBUTING.md`, `docs/PUBLISHING.md`. `package.json` release fields:
+`version` 0.1.0, `icon`, `repository`, curated `keywords`. An extension
+icon.
 
-### 10 — Test suite — Ongoing
+### 10 — CI — Planned
 
-Unit tests already grow with each phase (`src/test/unit/`, the Node test
-runner). This phase formalizes coverage and adds integration tests that need
-no hardware.
+GitHub Actions: compile, lint, test, and `vsce package` on Linux; a
+platform matrix as support lands.
 
-### 11 — CI — Planned
+### 11 — VSIX packaging — Planned
 
-GitHub Actions: compile, lint, test, and package on Linux; a platform matrix
-as support lands.
+Finalise `.vscodeignore`, review the shipped file list and size, produce
+`openfpga-deck-0.1.0.vsix`. (esbuild bundling is a v0.2 item.)
 
-### 12 — Documentation — Planned
-
-README, `CONTRIBUTING`, `SECURITY`, and `docs/` (the toolchain integrity
-model, the publishing process). An example-project walkthrough.
-
-### 13 — VSIX packaging — Planned
-
-Decide bundling (esbuild vs unbundled), finalize `.vscodeignore`, review
-dependencies, check the shipped size.
-
-### 14 — Marketplace publishing — Planned
+### 12 — Marketplace publishing — Planned
 
 Publisher setup and `vsce publish`. PAT authentication initially; the Entra
 ID / managed-identity path is documented as the intended successor (Azure
@@ -184,6 +178,14 @@ DevOps retires global PATs on 2026-12-01).
 
 ### Build pipeline
 
+- **Diagnostics** — best-effort regex parsing of Yosys and nextpnr logs into
+  `vscode.Diagnostic`s anchored to the right source lines, in the Problems
+  panel. Not a full parser. (Was a v0.1 phase; deferred to ship sooner.)
+- **Formalised tests** — integration tests over the injected-IO flows and a
+  coverage pass, beyond the per-module unit tests that grow with each phase.
+- **esbuild bundling** — bundle to one file to shrink the VSIX and speed
+  activation; v0.1 ships unbundled (one runtime dep, `yaml`) to keep
+  debugging simple.
 - **Incremental builds** — re-run a stage when its inputs changed, not only
   when its output file is missing. Today a stage command reuses an existing
   earlier-stage artefact even if the HDL or constraints have since changed;
