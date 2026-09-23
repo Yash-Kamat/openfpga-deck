@@ -9,6 +9,14 @@ updates:
     groups:
       npm:
         patterns: ["*"]
+    ignore:
+      # Major bumps break the toolchain in lockstep (TypeScript 7 vs
+      # typescript-eslint's peer range, eslint 10, vsce 4) — do them by hand.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Must match engines.vscode (vsce refuses a newer API than we claim);
+      # raise both together when the minimum VS Code version is raised.
+      - dependency-name: "@types/vscode"
   - package-ecosystem: github-actions
     directory: /
     schedule:
