@@ -2,6 +2,14 @@
 
 All notable changes to OpenFPGA Deck are documented here.
 
+## 0.1.1 — 2026-09-24
+
+### Changed
+
+- Published as a **linux-x64 platform-specific** build. The Marketplace now
+  offers OpenFPGA Deck only on 64-bit Linux, the one platform it is tested
+  on, instead of listing it as universal.
+
 ## 0.1.0 — 2026-08-30
 
 First release: the complete open-source FPGA flow for the Sipeed Tang Nano

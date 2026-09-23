@@ -31,15 +31,34 @@ From the repo root, with a clean `main` checked out:
 
 ```sh
 npm ci
-npm run compile && npm run lint && npm test     # sanity
-npx vsce login openfpga-deck                     # paste the PAT, once per machine
-npx vsce publish                                 # publishes the version in package.json
+npm run compile && npm run lint && npm test          # sanity
+npx vsce login openfpga-deck                          # paste the PAT, once per machine
+npx vsce publish --target linux-x64                   # publishes the version in package.json
 ```
 
-- To bump and publish in one step: `npx vsce publish patch` (or `minor`).
-- To only build the artifact without publishing: `npx vsce package` →
-  `openfpga-deck-<version>.vsix`. You can install that VSIX locally with
-  **Extensions: Install from VSIX…** to test.
+- To bump and publish in one step: `npx vsce publish --target linux-x64 patch`
+  (or `minor`).
+- To only build the artifact without publishing: `npm run package` →
+  `openfpga-deck-<version>.vsix` (targets `linux-x64`). You can install that
+  VSIX locally with **Extensions: Install from VSIX…** to test.
+
+## Platform targeting
+
+OpenFPGA Deck is published as a **platform-specific** extension for
+`linux-x64` only — the sole platform the OSS CAD Suite flow is tested on.
+The Marketplace then offers it for installation only on 64-bit Linux; users
+on Windows, macOS or Linux ARM never see an installable build, which keeps
+the listing honest instead of implying "Universal" support.
+
+- Adding a platform later means publishing another targeted build for it
+  (`--target darwin-arm64`, `--target win32-x64`, …) from the same version.
+  See <https://code.visualstudio.com/api/working-with-extensions/publishing-extension#platformspecific-extensions>
+  for the full target list.
+- The original `0.1.0` was published as a universal build, so it stays
+  installable everywhere until it is superseded. The next targeted release
+  makes `linux-x64` users upgrade; other platforms simply stop getting
+  updates. Optionally deprecate or unpublish `0.1.0` from
+  <https://marketplace.visualstudio.com/manage> once a targeted release is up.
 - The listing appears at
   `https://marketplace.visualstudio.com/items?itemName=openfpga-deck.openfpga-deck`
   within a few minutes; the pipeline verification can take longer.

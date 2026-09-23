@@ -19,8 +19,8 @@ jobs:
       - run: npm run compile
       - run: npm run lint
       - run: npm test
-      - run: npx vsce package --out openfpga-deck.vsix
+      - run: npx vsce package --target linux-x64 --out openfpga-deck-linux-x64.vsix
       - uses: actions/upload-artifact@v7
         with:
           name: vsix
-          path: openfpga-deck.vsix
+          path: openfpga-deck-linux-x64.vsix

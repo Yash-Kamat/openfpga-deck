@@ -2,7 +2,7 @@
   "name": "openfpga-deck",
   "displayName": "OpenFPGA Deck",
   "description": "Synthesize, place & route, pack and program open-source FPGAs from VS Code, powered by the YosysHQ OSS CAD Suite.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "openfpga-deck",
   "license": "Apache-2.0",
   "icon": "images/icon.png",
@@ -158,7 +158,7 @@
     "lint": "eslint src",
     "pretest": "npm run compile && npm run lint",
     "test": "node --test \"out/test/**/*.test.js\"",
-    "package": "vsce package"
+    "package": "vsce package --target linux-x64"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
