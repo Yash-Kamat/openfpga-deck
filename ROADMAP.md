@@ -1,278 +1,75 @@
 # Roadmap
 
-OpenFPGA Deck orchestrates the open-source FPGA toolchain (YosysHQ OSS CAD
-Suite) inside VS Code: write HDL → synthesize → place & route → pack a
-bitstream → program the board.
+OpenFPGA Deck runs the open-source FPGA flow (YosysHQ OSS CAD Suite) inside
+VS Code: HDL → synthesis → place and route → bitstream → board. Every release
+is verified on a real Sipeed Tang Nano 20K. Platforms other than Linux x64
+are added only once they are tested.
 
-Development is incremental. Each phase is small, lands as its own commit, and
-is verified against a real Sipeed Tang Nano 20K where hardware is involved.
+## Released
 
-**v0.1 goal — the vertical slice:**
-
-```
-Open an FPGA project
-  → Build   (Yosys → nextpnr-himbaechel → gowin_pack)
-  → Program (openFPGALoader)
-  → Tang Nano 20K
-```
-
-First target board: Sipeed Tang Nano 20K (Gowin GW2AR-LV18QN88C8/I7).
-Primary platform: Linux x64. Other platforms follow as OSS CAD Suite supports
-them — untested platforms are never claimed as supported.
-
-## Status
-
-| Phase | Scope | State |
+| Version | Date | Highlights |
 | --- | --- | --- |
-| 1 | Extension scaffold | Done |
-| 2 | `fpga.yaml` project configuration | Done |
-| 3a | Toolchain discovery & validation | Done |
-| 3b | Managed toolchain download | Done |
-| 4a | Board definition registry | Done |
-| 4b | "Initialize Project" wizard | Done |
-| 5 | Synthesis (Yosys) | Done |
-| 6 | Place & route (nextpnr-himbaechel) | Done |
-| 7 | Bitstream packing (gowin_pack) | Done |
-| 8a | Programming (openFPGALoader) | Done |
-| 8b | Flash backup & restore | Done |
-| 9 | Docs + release metadata | Done |
-| 10 | CI (GitHub Actions) | Done |
-| 11 | VSIX packaging | Done |
-| 12 | Marketplace publishing | Done |
+| 0.2.0 | 2026-09-25 | Project Settings panel with port → pin mapping, full Tang Nano 20K pin map, Problems-panel diagnostics, incremental builds, Clean |
+| 0.1.1 | 2026-09-24 | Published as a linux-x64 build |
+| 0.1.0 | 2026-08-30 | First release: project file, toolchain download, build, program, flash backup |
 
-**v0.1.0 shipped 2026-08-31** —
-[live on the Marketplace](https://marketplace.visualstudio.com/items?itemName=openfpga-deck.openfpga-deck),
-tagged [`v0.1.0`](https://github.com/Yash-Kamat/openfpga-deck/releases/tag/v0.1.0)
-on GitHub. Everything below is v0.2 work.
+Details are in the [changelog](CHANGELOG.md).
 
-Everything past the working vertical slice that is not needed to *ship*
-has moved to [v0.2 and beyond](#v02-and-beyond): log → Problems-panel
-diagnostics, a formalised test/integration pass, esbuild bundling. The
-priority is a published, working v0.1; polish follows.
+## v0.3 — seeing the pins
 
-## v0.1 phases
+- **Board pin diagram.** A drawing of a known board's headers with each
+  pin's number and what is assigned to it (STM32CubeMX-style), plus the
+  on-board peripherals by group. Built from the board file's `headers`,
+  `group` and `note`, so pin numbers stay visible after the headers are
+  soldered.
+- **Chip-level IO planner.** For custom hardware or a bare chip: a
+  package pin grid to assign top-level ports to physical pins, with pin data
+  from Project Apicula's device databases. `nextpnr`'s Qt floorplan view is
+  the rendering reference.
 
-### 1 — Extension scaffold — Done
+Both are views of the same port → pin mapping (`src/project/pinmap.ts`) and
+write the `.cst` through it.
 
-Minimal activatable extension: command registration, a shared output channel,
-the compile/lint/package pipeline.
+## v0.4 — your own boards
 
-### 2 — Project configuration — Done
+- **Custom board files.** Load board files from a user folder (a setting
+  and/or `boards/` in the project) next to the shipped ones, through the same
+  validator, with the format documented. The chip pin grid belongs to the
+  FPGA package, so it becomes a separate device file that board files point
+  to.
 
-`fpga.yaml` schema (`name`, `board`, `top`, `sources`, `constraints`); a
-loader/validator with clear, located error messages; source/constraint paths
-must be relative and stay inside the project; the `Validate Project` command.
+## Later
 
-### 3a — Toolchain discovery — Done
+**Build**
+- VHDL synthesis through the `ghdl` yosys plugin in the OSS CAD Suite
+  (`.vhd` / `.vhdl` sources are rejected with a clear message today).
+- Per-clock timing constraints instead of one global `--freq` from the
+  board's first clock.
+- Track `include`d files in incremental builds.
+- esbuild bundling to shrink the VSIX and speed up activation.
+- Integration tests over the injected-IO flows, and a coverage pass.
 
-Locate an existing OSS CAD Suite from the `openfpga.toolchain.path` setting,
-`PATH`, or conventional locations; confirm `yosys`, `nextpnr-himbaechel`,
-`gowin_pack`, and `openFPGALoader` are present and read their versions.
-`Verify Toolchain` / `Select Toolchain` commands and a status-bar indicator.
+**Board and programming**
+- Programmer / cable selection when several boards or FTDI cables are
+  attached (`openFPGALoader --ftdi-serial` / `-c`).
+- Serial monitor for the board's UART in a VS Code terminal, for
+  `printf`-style debugging and SoC consoles.
+- Rotating flash backups and a one-click "restore latest".
 
-### 3b — Managed toolchain download — Done
+**Editor and toolchain**
+- Coloured build console in a pseudoterminal (VS Code's `log` output
+  grammar colours every number, so it was rejected).
+- Uninstall Toolchain, with a guard against removing the active release.
+- Floorplanner: placement-region constraints for place and route.
 
-`Download Toolchain`: fetch a release (latest via the GitHub API, or a
-specific tag) from the official repo, integrity-check it (GitHub's asset
-digest → a hash recorded from a previous download → confirmed
-trust-on-first-use), extract it safely, and offer to make it active.
-Releases coexist under `<installDir>/oss-cad-suite-<tag>/`; archives are kept
-in `downloads/` and reused when their hash matches.
+**Reach**
+- Simulation: Verilator, Icarus Verilog, GTKWave / Surfer.
+- More platforms: Windows, macOS (Intel and Apple Silicon), Linux ARM64.
+- More boards and families: further Gowin boards, then iCE40 (`icepack`) and
+  ECP5 (`ecppack`).
 
-### 4a — Board definition registry — Done
+## Principles
 
-Declarative board files (`boards/gowin/tang-nano-20k.yaml`): FPGA part,
-family, package and pin list, default constraints, programmer parameters. A
-loader/validator and a registry the rest of the pipeline reads — no hardcoded
-per-board branching. A reusable `.cst` parse/serialize module lands here too
-(needed by the wizard and, later, the IO planner).
-
-### 4b — "Initialize Project" wizard — Done
-
-A guided QuickPick sequence for an empty folder: project name → board → top
-module → language (Verilog default) → starter design → scaffold `fpga.yaml`,
-`src/top.v`, `constraints/top.cst`, and `build/`. The richer configuration
-panel is a v0.2 item (below).
-
-### 5 — Synthesis (Yosys) — Done
-
-Run `yosys` with `synth_gowin` over the project sources to produce a JSON
-netlist, via a generated `build/yosys/synth.ys` script (one `read_verilog`
-line per source, `-sv` only for `.sv`). Introduces the build engine:
-subprocesses spawned with argument arrays, output streamed to the channel,
-cancellable, a single-build lock, and a predictable `build/` layout
-(`yosys/ pnr/ bitstream/ logs/ reports/`). Device/family targeting is
-nextpnr's job (Phase 6), not yosys's.
-
-### 6 — Place & route — Done
-
-Run `nextpnr-himbaechel` with the device string, `--vopt family=…`, and the
-`.cst` constraints to produce a placed-and-routed netlist. The per-family
-argument model is first-class (Gowin/Himbaechel first).
-
-### 7 — Bitstream packing — Done
-
-Run `gowin_pack` to produce the `.fs` bitstream. Surface a resource-usage
-report to the user.
-
-### 8a — Programming (openFPGALoader) — Done
-
-`Program` (a prompt for SRAM, volatile, or SPI flash, persistent — defaulting
-to the board's target), `Build and Program` (the full slice), and
-`Detect Board` (`openFPGALoader -b <board> --detect`, used as a preflight).
-The board flag comes from the board definition. openFPGALoader's `\r`
-progress bars are throttled in the output channel; permission / udev
-failures get a pointer to the fix.
-
-### 8b — Flash backup & restore — Done
-
-Before any flash write, offer to dump the current flash contents
-(`--dump-flash --file-size <programmer.flashSize>`) to
-`build/backup/flash-<timestamp>.bin`, so an accidental overwrite of a
-board's factory image is recoverable. Adds `programmer.flashSize` to the
-board schema.
-
-`Write File to Board` completes the loop: pick any `.fs` bitstream or
-`.bin` flash image from anywhere on disk and write it to SRAM or flash —
-used to restore a backup or flash a prebuilt bitstream. Flash writes go
-through the same backup prompt.
-
-The build actions also get a status-bar cluster (Build, Build and Program,
-Detect Board, a "more" menu, and a Cancel button while a build runs);
-progress moves to `ProgressLocation.Window` so the toast stops covering
-the Output view.
-
-### 9 — Docs + release metadata — Done
-
-`README.md` (the Marketplace listing), `CHANGELOG.md`, `SECURITY.md`,
-`CONTRIBUTING.md`, `docs/PUBLISHING.md`, `NOTICE` (Apache-2.0 attribution).
-`package.json` release fields: `version` 0.1.0, `icon`, `repository`,
-`bugs`, `homepage`, curated `keywords`. An extension icon. All commits use
-a GitHub `noreply` address, not a personal email.
-
-### 10 — CI — Done
-
-GitHub Actions (`.github/workflows/ci.yml`): compile, lint, test,
-`npm audit`, and `vsce package` on every push/PR. Dependabot for npm and
-Actions, grouped monthly. A platform matrix is a v0.2 item.
-
-### 11 — VSIX packaging — Done
-
-`.vscodeignore` finalised (ships `out/`, the board defs, README, CHANGELOG,
-LICENSE, NOTICE, icon — no source, tests, examples, or dev docs);
-`openfpga-deck-0.1.0.vsix` is 196 files / ~270 KB. (esbuild bundling is a
-v0.2 item.)
-
-### 12 — Marketplace publishing — Done
-
-Publisher `openfpga-deck` created; first release published by uploading
-the `.vsix` directly at marketplace.visualstudio.com/manage (no PAT
-needed for a one-off upload — see `docs/PUBLISHING.md` for the `vsce
-publish` / PAT route used for later releases). PAT auth via Azure DevOps
-for now; the Entra ID / managed-identity path is documented as the
-intended successor (Azure DevOps retires global PATs on 2026-12-01).
-
-## Security posture (every phase)
-
-- Orchestrates existing tools; never reimplements or bundles them.
-- Every subprocess is spawned with an executable + argument array — never a
-  shell string.
-- Toolchain downloads only from
-  `github.com/YosysHQ/oss-cad-suite-build/releases/`, over HTTPS, and are
-  integrity-checked.
-- Archive extraction refuses absolute paths and `..` segments.
-- `openfpga.toolchain.*` settings are `machine-overridable`, so a workspace
-  (e.g. a cloned repo) cannot point the extension at an arbitrary executable.
-- No telemetry, no analytics, and no network requests beyond the toolchain
-  download and the GitHub release API.
-
-## v0.2 and beyond
-
-### Build pipeline
-
-- **Diagnostics** — Done. Best-effort parsing of yosys, nextpnr and
-  gowin_pack logs into the Problems panel (HDL line, `.cst` line of the
-  port, or `fpga.yaml`). Unlocated warnings stay in the output.
-- **Formalised tests** — integration tests over the injected-IO flows and a
-  coverage pass, beyond the per-module unit tests that grow with each phase.
-- **esbuild bundling** — bundle to one file to shrink the VSIX and speed
-  activation; v0.1 ships unbundled (one runtime dep, `yaml`) to keep
-  debugging simple.
-- **Incremental builds** — Done. A stage is skipped when its output is
-  newer than its inputs; a toolchain switch makes everything stale.
-  Known gap: `include`d files are not tracked.
-- **Clean command** — Done. Deletes `build/`, keeping `build/backup/`.
-- **VHDL synthesis** — wire up the `ghdl` / ghdl-yosys-plugin path bundled in
-  OSS CAD Suite so `.vhd` / `.vhdl` sources synthesise; they are currently
-  rejected with a clear message.
-- **Per-clock timing constraints** — richer than the single global `--freq`
-  taken from the board's first clock today.
-
-### Board & programming
-
-- **Full Tang Nano 20K pin map** — Done. Every schematic pin (rev 3923) with
-  a `group` and `note`, the J5/J6 header map, and `configPins`: using an
-  SSPI/MSPI pin makes the build release it as GPIO. Tested on hardware:
-  LEDs, buttons, UART, WS2812, MS5351 clocks and HDMI TMDS. The other
-  groups come from the schematic only.
-- **Flash backup** — Phase 8b lands the backup-before-write prompt and
-  `Write File to Board`; a later pass may keep a rotating set of dumps and a
-  one-click "restore latest".
-- **Programmer / cable selection** — when more than one board or FTDI cable
-  is attached, let the user choose (`openFPGALoader --ftdi-serial` / `-c`)
-  instead of assuming the first.
-- **Serial monitor** — open the board's UART (the Tang Nano 20K exposes it as
-  a second USB serial device) in a VS Code terminal at a configurable baud,
-  so `printf`-style debugging and SoC consoles (e.g. the factory LiteX BIOS)
-  work without an external `minicom`.
-
-### Editor experience
-
-- **Coloured build console** — render the pipeline output in a pseudoterminal
-  (`window.createTerminal({ pty })`) with hand-written ANSI: dimmed stage
-  rules, green / red result markers, tool output left as-is. VS Code's `log`
-  output-channel grammar was tried and rejected — its generic lexer colours
-  every number and identifier. Trade-off: moves the build log from the
-  Output panel to the Terminal panel.
-- **Project Settings panel** — Done. An ESP-IDF-style webview replaces the
-  QuickPick wizard: project basics, source files (outside HDL copied in),
-  port → pin mapping with conflict checks, `.cst` generation with a
-  confirm-and-diff before overwriting, and toolchain version selection plus
-  update check. Not yet: detected USB ports / programmer selection.
-- **Board pin diagram (v0.3)** — for a known board: a drawing of its
-  headers with each pin's number, and what is assigned to it next to it
-  (STM32CubeMX-style), plus the on-board peripherals by group. Uses the board
-  file's `headers`, `group` and `note`, so the pin numbers stay visible after
-  the headers are soldered.
-- **Chip-level IO planner (v0.3)** — for custom hardware or a bare chip: a
-  package/pin grid; assign top-level ports to physical pins; pin data from
-  Project Apicula's device databases. Easier to recreate for a new FPGA than
-  a board drawing. No open-source equivalent exists; `nextpnr`'s Qt GUI
-  floorplan view is the reference for rendering the fabric.
-
-- **Custom board files (v0.4)** — load board files from the user's own
-  folder (a setting and/or `boards/` in the project) next to the shipped
-  ones, through the same validator, and document the format. Waits for the
-  format to settle after the v0.3 diagram and IO planner. The chip pin grid
-  belongs to the FPGA package, not the board, so it would be a separate
-  device file that board files point to.
-
-  Both are views of the same port → pin mapping (`src/project/pinmap.ts`)
-  and write the `.cst` through it, not through a writer of their own.
-- **Floorplanner** — placement-region constraints for P&R. Lower priority.
-
-### Toolchain
-
-- **Uninstall Toolchain** — remove a managed release folder and/or its
-  archive from a picker, with a guard against removing the active one.
-- **Check for Toolchain Updates** — Done, in the Project Settings panel
-  (section 4): compares the active release with GitHub's latest and offers
-  to download it.
-
-### Reach
-
-- **Simulation** — Verilator / Icarus Verilog / GTKWave / Surfer integration.
-- **More platforms** — Windows, macOS (Intel and Apple Silicon), Linux
-  ARM64.
-- **More boards and families** — further Gowin boards, then iCE40 (`icepack`)
-  and ECP5 (`ecppack`) flows.
+OpenFPGA Deck orchestrates existing tools and never bundles or reimplements
+them. The security rules every change follows are in
+[SECURITY.md](SECURITY.md).

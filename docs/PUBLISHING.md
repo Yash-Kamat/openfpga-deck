@@ -27,20 +27,36 @@ The Marketplace is run on top of Azure DevOps, so the accounts live there.
 
 ## Every release
 
-From the repo root, with a clean `main` checked out:
+1. On a `release/vX.Y.Z` branch: bump `version` in `package.json` (and
+   `package-lock.json`), date the CHANGELOG section, then build a test VSIX:
 
-```sh
-npm ci
-npm run compile && npm run lint && npm test          # sanity
-npx vsce login openfpga-deck                          # paste the PAT, once per machine
-npx vsce publish --target linux-x64                   # publishes the version in package.json
-```
+   ```sh
+   npm ci
+   npm run compile && npm run lint && npm test
+   npm run package        # -> openfpga-deck-linux-x64-X.Y.Z.vsix
+   ```
 
-- To bump and publish in one step: `npx vsce publish --target linux-x64 patch`
-  (or `minor`).
-- To only build the artifact without publishing: `npm run package` →
-  `openfpga-deck-<version>.vsix` (targets `linux-x64`). You can install that
-  VSIX locally with **Extensions: Install from VSIX…** to test.
+   Install it with **Extensions → `...` → Install from VSIX…** and test it on
+   the board.
+2. Push the branch, open a pull request, wait for CI to pass, merge it on
+   GitHub. The README images load from `main`, so merge before publishing.
+3. On an up-to-date `main`, check that `git status` shows no untracked
+   files: `vsce` packages what is on disk, not what is in git.
+   Then:
+
+   ```sh
+   npx vsce login openfpga-deck        # paste the PAT; once per machine
+   npx vsce publish --target linux-x64
+   ```
+
+4. Tag the release and push the tag:
+
+   ```sh
+   git tag vX.Y.Z && git push origin vX.Y.Z
+   ```
+
+5. On GitHub: **Releases → Draft a new release**, choose the tag, paste the
+   CHANGELOG section as the notes, attach the `.vsix`, **Publish release**.
 
 ## Platform targeting
 
@@ -54,11 +70,11 @@ the listing honest instead of implying "Universal" support.
   (`--target darwin-arm64`, `--target win32-x64`, …) from the same version.
   See <https://code.visualstudio.com/api/working-with-extensions/publishing-extension#platformspecific-extensions>
   for the full target list.
-- The original `0.1.0` was published as a universal build, so it stays
-  installable everywhere until it is superseded. The next targeted release
-  makes `linux-x64` users upgrade; other platforms simply stop getting
-  updates. Optionally deprecate or unpublish `0.1.0` from
-  <https://marketplace.visualstudio.com/manage> once a targeted release is up.
+- `0.1.0` was published as a universal build, so Windows and macOS users
+  could still install it. Remove that one version after a targeted release
+  is live: <https://marketplace.visualstudio.com/manage> → OpenFPGA Deck →
+  **More Actions → Reports → Delete this version**, then type the extension
+  name to confirm. The other versions stay.
 - The listing appears at
   `https://marketplace.visualstudio.com/items?itemName=openfpga-deck.openfpga-deck`
   within a few minutes; the pipeline verification can take longer.

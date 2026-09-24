@@ -10,7 +10,7 @@
  *
  * The toolchain path is stored in the `openfpga.toolchain.path` *setting*,
  * not in `fpga.yaml`, because it is machine-specific. The setting is declared
- * with `machine-overridable` scope so a workspace (which may come from an
+ * with `machine` scope so a workspace (which may come from an
  * untrusted cloned repo) cannot point the extension at an arbitrary
  * executable — only user/machine settings can set it. "Select Toolchain"
  * therefore always writes to the Global (user) target.

@@ -2,7 +2,7 @@
 
 All notable changes to OpenFPGA Deck are documented here.
 
-## Unreleased
+## 0.2.0 — 2026-09-25
 
 ### Added
 
@@ -38,11 +38,16 @@ All notable changes to OpenFPGA Deck are documented here.
 
 ### Fixed
 
+- The `openfpga.toolchain.*` settings could be overridden by a workspace's
+  `.vscode/settings.json`, contrary to the documentation. They now have
+  `machine` scope: user (or remote) settings only.
 - Source paths containing spaces broke synthesis (yosys split them); they are
   now quoted.
 
 ### Changed
 
+- New icon: a chip with a routed logic cell, drawn to stay legible at
+  small sizes.
 - **Incremental builds.** A stage is skipped when its output is newer than
   its inputs (synthesis: `fpga.yaml` + sources; place & route: the netlist
   + `.cst`; packing: the routed netlist); switching toolchain version

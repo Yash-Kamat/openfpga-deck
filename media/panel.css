@@ -67,7 +67,7 @@ ul.files li { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
 /* Fixed layout: columns keep their width whatever the Status text says;
    long messages wrap inside their own column. */
 .table-scroll { overflow-x: auto; margin-top: 8px; }
-table.pins { border-collapse: collapse; table-layout: fixed; width: max-content; }
+table.pins { border-collapse: collapse; table-layout: fixed; width: 100%; }
 table.pins th { position: relative; text-align: left; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-widget-border)); }
 table.pins td { padding: 4px 8px; vertical-align: top; overflow: hidden; overflow-wrap: anywhere; }
 table.pins tr + tr td { border-top: 1px solid var(--vscode-editorGroup-border, transparent); }
