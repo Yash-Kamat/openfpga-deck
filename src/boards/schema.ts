@@ -29,6 +29,10 @@ export interface PinAttributes {
 	readonly attrs?: Readonly<Record<string, string>>;
 }
 
+/** Signal direction from the FPGA's point of view, in Verilog / yosys terms. */
+export type PortDirection = 'input' | 'output' | 'inout';
+const PORT_DIRECTIONS: readonly PortDirection[] = ['input', 'output', 'inout'];
+
 export interface BoardPin extends PinAttributes {
 	/** Physical location: a pin number ("4"), a pair ("33,34"), or a ball ("H11"). */
 	readonly loc: string;
@@ -36,6 +40,8 @@ export interface BoardPin extends PinAttributes {
 	readonly group?: string;
 	/** Free-text caveat shown next to the pin (sharing, polarity, …). */
 	readonly note?: string;
+	/** Usual direction; the default for a generated top-module port. */
+	readonly dir?: PortDirection;
 }
 
 /**
@@ -270,10 +276,22 @@ function validatePins(raw: unknown, fail: (m: string) => void): Record<string, B
 			loc: value.loc,
 			group: optionalStr(value.group, `pins."${signal}".group`, fail),
 			note: optionalStr(value.note, `pins."${signal}".note`, fail),
+			dir: pinDirection(value.dir, `pins."${signal}".dir`, fail),
 			...parsePinAttributes(value, `pins."${signal}"`, fail),
 		};
 	}
 	return out;
+}
+
+function pinDirection(raw: unknown, key: string, fail: (m: string) => void): PortDirection | undefined {
+	if (raw === undefined) {
+		return undefined;
+	}
+	if (PORT_DIRECTIONS.includes(raw as PortDirection)) {
+		return raw as PortDirection;
+	}
+	fail(`${key} must be one of ${PORT_DIRECTIONS.join(', ')}.`);
+	return undefined;
 }
 
 function validateStringLists(

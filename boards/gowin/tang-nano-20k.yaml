@@ -65,95 +65,100 @@ headers:
 # any other Gowin IO_PORT attribute through verbatim.
 pins:
   # --- Clocks ---------------------------------------------------------------
-  clk:          { loc: "4",  group: Clocks, pull: up, note: "27 MHz oscillator (LPLL1_T_in)." }
-  ms5351_clk0:  { loc: "10", group: Clocks, pull: none, note: "MS5351 CLK0 (GCLKT_6). Frequency set from the BL616 console (pll_clk)." }
-  ms5351_clk1:  { loc: "11", group: Clocks, pull: none, note: "MS5351 CLK1 (GCLKC_6). BL616 console: pll_clk O1=<freq>." }
-  ms5351_clk2:  { loc: "13", group: Clocks, pull: none, note: "MS5351 CLK2 (LPLL2_T_in). Shared with the BL616 SPI SCLK net." }
+  clk:          { loc: "4",  dir: input, group: Clocks, pull: up, note: "27 MHz oscillator (LPLL1_T_in)." }
+  ms5351_clk0:  { loc: "10", dir: input, group: Clocks, pull: none, note: "MS5351 CLK0 (GCLKT_6). Frequency set from the BL616 console (pll_clk)." }
+  ms5351_clk1:  { loc: "11", dir: input, group: Clocks, pull: none, note: "MS5351 CLK1 (GCLKC_6). BL616 console: pll_clk O1=<freq>." }
+  ms5351_clk2:  { loc: "13", dir: input, group: Clocks, pull: none, note: "MS5351 CLK2 (LPLL2_T_in). Shared with the BL616 SPI SCLK net." }
 
   # --- LEDs (active-low: 0 = on) -------------------------------------------
-  "led[0]": { loc: "15", group: LEDs, pull: up, drive: 8, note: "Also LCD touch XR." }
-  "led[1]": { loc: "16", group: LEDs, pull: up, drive: 8, note: "Also LCD touch YD." }
-  "led[2]": { loc: "17", group: LEDs, pull: up, drive: 8, note: "Also LCD touch XL; DS2 joystick 1 CLK." }
-  "led[3]": { loc: "18", group: LEDs, pull: up, drive: 8, note: "Also LCD touch YU; DS2 joystick 1 CS." }
-  "led[4]": { loc: "19", group: LEDs, pull: up, drive: 8, note: "Also DS2 joystick 1 MISO." }
-  "led[5]": { loc: "20", group: LEDs, pull: up, drive: 8, note: "Also DS2 joystick 1 MOSI." }
+  "led[0]": { loc: "15", dir: output, group: LEDs, pull: up, drive: 8, note: "Also LCD touch XR." }
+  "led[1]": { loc: "16", dir: output, group: LEDs, pull: up, drive: 8, note: "Also LCD touch YD." }
+  "led[2]": { loc: "17", dir: output, group: LEDs, pull: up, drive: 8, note: "Also LCD touch XL; DS2 joystick 1 CLK." }
+  "led[3]": { loc: "18", dir: output, group: LEDs, pull: up, drive: 8, note: "Also LCD touch YU; DS2 joystick 1 CS." }
+  "led[4]": { loc: "19", dir: output, group: LEDs, pull: up, drive: 8, note: "Also DS2 joystick 1 MISO." }
+  "led[5]": { loc: "20", dir: output, group: LEDs, pull: up, drive: 8, note: "Also DS2 joystick 1 MOSI." }
 
   # --- Buttons (active-high: 1 = pressed; 1 kΩ pull-down on board) ---------
-  btn_s1: { loc: "88", group: Buttons, pull: down, note: "S1. MODE0 strap pin." }
-  btn_s2: { loc: "87", group: Buttons, pull: down, note: "S2. MODE1 strap pin." }
+  btn_s1: { loc: "88", dir: input, group: Buttons, pull: down, note: "S1. MODE0 strap pin." }
+  btn_s2: { loc: "87", dir: input, group: Buttons, pull: down, note: "S2. MODE1 strap pin." }
 
   # --- UART to the BL616 (USB serial on the host) --------------------------
-  uart_tx: { loc: "69", group: UART, note: "FPGA -> host." }
-  uart_rx: { loc: "70", group: UART, note: "Host -> FPGA." }
+  uart_tx: { loc: "69", dir: output, group: UART, note: "FPGA -> host." }
+  uart_rx: { loc: "70", dir: input, group: UART, note: "Host -> FPGA." }
 
   # --- WS2812 RGB LED -------------------------------------------------------
-  ws2812: { loc: "79", group: WS2812, drive: 8, note: "Data in to the on-board WS2812B (5 V, 3.3 V data)." }
+  ws2812: { loc: "79", dir: output, group: WS2812, drive: 8, note: "Data in to the on-board WS2812B (5 V, 3.3 V data)." }
 
   # --- HDMI (DVI TX) --------------------------------------------------------
   # Pairs on bank 5, AC-coupled; drive with TLVDS_OBUF (Apicula dvi-example).
-  tmds_clk_p:    { loc: "33", group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G6." }
-  tmds_clk_n:    { loc: "34", group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G5." }
-  "tmds_d_p[0]": { loc: "35", group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G4." }
-  "tmds_d_n[0]": { loc: "36", group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G3." }
-  "tmds_d_p[1]": { loc: "37", group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G2." }
-  "tmds_d_n[1]": { loc: "38", group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD R7." }
-  "tmds_d_p[2]": { loc: "39", group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD R6." }
-  "tmds_d_n[2]": { loc: "40", group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD R5." }
-  hdmi_scl:      { loc: "53", group: HDMI, pull: none, note: "DDC SCL via level shifter, 2.2 kΩ pull-up on board; drive open-drain. SSPI pin. Also DS2 joystick 2 MOSI." }
-  hdmi_sda:      { loc: "52", group: HDMI, pull: none, note: "DDC SDA via level shifter, 2.2 kΩ pull-up on board; drive open-drain. SSPI pin. Also DS2 joystick 2 CLK." }
-  hdmi_hpd:      { loc: "26", group: HDMI, pull: none, note: "Hot-plug detect (input, divided from 5 V). Shared with LCD VSYNC." }
-  hdmi_cec:      { loc: "25", group: HDMI, pull: none, note: "CEC via 100 Ω, 27 kΩ pull-up. Shared with LCD HSYNC." }
+  tmds_clk_p:    { loc: "33", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G6." }
+  tmds_clk_n:    { loc: "34", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G5." }
+  "tmds_d_p[0]": { loc: "35", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G4." }
+  "tmds_d_n[0]": { loc: "36", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G3." }
+  "tmds_d_p[1]": { loc: "37", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G2." }
+  "tmds_d_n[1]": { loc: "38", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD R7." }
+  "tmds_d_p[2]": { loc: "39", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD R6." }
+  "tmds_d_n[2]": { loc: "40", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD R5." }
+  hdmi_scl:      { loc: "53", dir: inout, group: HDMI, pull: none, note: "DDC SCL via level shifter, 2.2 kΩ pull-up on board; drive open-drain. SSPI pin. Also DS2 joystick 2 MOSI." }
+  hdmi_sda:      { loc: "52", dir: inout, group: HDMI, pull: none, note: "DDC SDA via level shifter, 2.2 kΩ pull-up on board; drive open-drain. SSPI pin. Also DS2 joystick 2 CLK." }
+  hdmi_hpd:      { loc: "26", dir: input, group: HDMI, pull: none, note: "Hot-plug detect (input, divided from 5 V). Shared with LCD VSYNC." }
+  hdmi_cec:      { loc: "25", dir: inout, group: HDMI, pull: none, note: "CEC via 100 Ω, 27 kΩ pull-up. Shared with LCD HSYNC." }
 
   # --- RGB LCD (40-pin FPC, 16-bit RGB565: R3-R7, G2-G7, B3-B7) ------------
-  "lcd_r[0]": { loc: "42", group: RGB LCD, note: "Panel R3." }
-  "lcd_r[1]": { loc: "41", group: RGB LCD, note: "Panel R4." }
-  "lcd_r[2]": { loc: "40", group: RGB LCD, note: "Panel R5. Shared with HDMI D2-." }
-  "lcd_r[3]": { loc: "39", group: RGB LCD, note: "Panel R6. Shared with HDMI D2+." }
-  "lcd_r[4]": { loc: "38", group: RGB LCD, note: "Panel R7. Shared with HDMI D1-." }
-  "lcd_g[0]": { loc: "37", group: RGB LCD, note: "Panel G2. Shared with HDMI D1+." }
-  "lcd_g[1]": { loc: "36", group: RGB LCD, note: "Panel G3. Shared with HDMI D0-." }
-  "lcd_g[2]": { loc: "35", group: RGB LCD, note: "Panel G4. Shared with HDMI D0+." }
-  "lcd_g[3]": { loc: "34", group: RGB LCD, note: "Panel G5. Shared with HDMI CLK-." }
-  "lcd_g[4]": { loc: "33", group: RGB LCD, note: "Panel G6. Shared with HDMI CLK+." }
-  "lcd_g[5]": { loc: "32", group: RGB LCD, note: "Panel G7." }
-  "lcd_b[0]": { loc: "31", group: RGB LCD, note: "Panel B3." }
-  "lcd_b[1]": { loc: "30", group: RGB LCD, note: "Panel B4." }
-  "lcd_b[2]": { loc: "29", group: RGB LCD, note: "Panel B5." }
-  "lcd_b[3]": { loc: "28", group: RGB LCD, note: "Panel B6." }
-  "lcd_b[4]": { loc: "27", group: RGB LCD, note: "Panel B7." }
-  lcd_clk:    { loc: "77", group: RGB LCD, note: "Pixel clock (GCLKT_1)." }
-  lcd_hs:     { loc: "25", group: RGB LCD, note: "HSYNC. Shared with HDMI CEC." }
-  lcd_vs:     { loc: "26", group: RGB LCD, note: "VSYNC. Shared with HDMI HPD." }
-  lcd_de:     { loc: "48", group: RGB LCD, note: "Data enable." }
-  lcd_bl:     { loc: "49", group: RGB LCD, note: "Backlight driver enable (LP3320)." }
+  "lcd_r[0]": { loc: "42", dir: output, group: RGB LCD, note: "Panel R3." }
+  "lcd_r[1]": { loc: "41", dir: output, group: RGB LCD, note: "Panel R4." }
+  "lcd_r[2]": { loc: "40", dir: output, group: RGB LCD, note: "Panel R5. Shared with HDMI D2-." }
+  "lcd_r[3]": { loc: "39", dir: output, group: RGB LCD, note: "Panel R6. Shared with HDMI D2+." }
+  "lcd_r[4]": { loc: "38", dir: output, group: RGB LCD, note: "Panel R7. Shared with HDMI D1-." }
+  "lcd_g[0]": { loc: "37", dir: output, group: RGB LCD, note: "Panel G2. Shared with HDMI D1+." }
+  "lcd_g[1]": { loc: "36", dir: output, group: RGB LCD, note: "Panel G3. Shared with HDMI D0-." }
+  "lcd_g[2]": { loc: "35", dir: output, group: RGB LCD, note: "Panel G4. Shared with HDMI D0+." }
+  "lcd_g[3]": { loc: "34", dir: output, group: RGB LCD, note: "Panel G5. Shared with HDMI CLK-." }
+  "lcd_g[4]": { loc: "33", dir: output, group: RGB LCD, note: "Panel G6. Shared with HDMI CLK+." }
+  "lcd_g[5]": { loc: "32", dir: output, group: RGB LCD, note: "Panel G7." }
+  "lcd_b[0]": { loc: "31", dir: output, group: RGB LCD, note: "Panel B3." }
+  "lcd_b[1]": { loc: "30", dir: output, group: RGB LCD, note: "Panel B4." }
+  "lcd_b[2]": { loc: "29", dir: output, group: RGB LCD, note: "Panel B5." }
+  "lcd_b[3]": { loc: "28", dir: output, group: RGB LCD, note: "Panel B6." }
+  "lcd_b[4]": { loc: "27", dir: output, group: RGB LCD, note: "Panel B7." }
+  lcd_clk:    { loc: "77", dir: output, group: RGB LCD, note: "Pixel clock (GCLKT_1)." }
+  lcd_hs:     { loc: "25", dir: output, group: RGB LCD, note: "HSYNC. Shared with HDMI CEC." }
+  lcd_vs:     { loc: "26", dir: output, group: RGB LCD, note: "VSYNC. Shared with HDMI HPD." }
+  lcd_de:     { loc: "48", dir: output, group: RGB LCD, note: "Data enable." }
+  lcd_bl:     { loc: "49", dir: output, group: RGB LCD, note: "Backlight driver enable (LP3320)." }
 
   # --- microSD (4-bit SD or SPI mode; 10 kΩ pull-ups on board) -------------
-  sd_clk:    { loc: "83", group: SD card }
-  sd_cmd:    { loc: "82", group: SD card, note: "SPI mode: MOSI." }
-  "sd_dat[0]": { loc: "84", group: SD card, note: "SPI mode: MISO." }
-  "sd_dat[1]": { loc: "85", group: SD card }
-  "sd_dat[2]": { loc: "80", group: SD card }
-  "sd_dat[3]": { loc: "81", group: SD card, note: "SPI mode: CS." }
+  # `dir` suits 4-bit SD mode. In SPI mode, make cmd an output, dat[0] an
+  # input and dat[3] an output.
+  sd_clk:    { loc: "83", dir: output, group: SD card }
+  sd_cmd:    { loc: "82", dir: inout, group: SD card, note: "SPI mode: MOSI." }
+  "sd_dat[0]": { loc: "84", dir: inout, group: SD card, note: "SPI mode: MISO." }
+  "sd_dat[1]": { loc: "85", dir: inout, group: SD card }
+  "sd_dat[2]": { loc: "80", dir: inout, group: SD card }
+  "sd_dat[3]": { loc: "81", dir: inout, group: SD card, note: "SPI mode: CS." }
 
   # --- Audio: MAX98357A I2S amplifier -> speaker connector J4 --------------
-  i2s_bclk: { loc: "56", group: Audio, note: "SSPI pin." }
-  i2s_lrck: { loc: "55", group: Audio, note: "SSPI pin." }
-  i2s_din:  { loc: "54", group: Audio, note: "SSPI pin." }
-  pa_en:    { loc: "51", group: Audio, note: "Amplifier SD_MODE: high = on, low = shutdown." }
+  i2s_bclk: { loc: "56", dir: output, group: Audio, note: "SSPI pin." }
+  i2s_lrck: { loc: "55", dir: output, group: Audio, note: "SSPI pin." }
+  i2s_din:  { loc: "54", dir: output, group: Audio, note: "SSPI pin." }
+  pa_en:    { loc: "51", dir: output, group: Audio, note: "Amplifier SD_MODE: high = on, low = shutdown." }
 
   # --- SPI link to the BL616 (see BL616 console `choose`) ------------------
-  bl616_spi_sclk: { loc: "13", group: BL616 SPI, note: "Shared with MS5351 CLK2." }
-  bl616_spi_miso: { loc: "75", group: BL616 SPI }
-  bl616_spi_mosi: { loc: "76", group: BL616 SPI }
-  bl616_spi_dir:  { loc: "86", group: BL616 SPI }
+  # The BL616 is the SPI slave in `choose spi` mode, so the FPGA is master
+  # (Sipeed wiki, Tang Nano 20K unbox page). Directions unverified on hardware.
+  bl616_spi_sclk: { loc: "13", dir: output, group: BL616 SPI, note: "Shared with MS5351 CLK2: keep that output disabled (pll_clk) while the FPGA drives SCLK." }
+  bl616_spi_miso: { loc: "75", dir: input, group: BL616 SPI }
+  bl616_spi_mosi: { loc: "76", dir: output, group: BL616 SPI }
+  bl616_spi_dir:  { loc: "86", group: BL616 SPI, note: "Purpose not documented by Sipeed; direction unknown." }
 
   # --- Configuration SPI flash (XT25F64F). Holds the boot bitstream. -------
-  flash_cs:   { loc: "60", group: Config flash, note: "MSPI pin. Writing the flash from logic can overwrite the boot image." }
-  flash_clk:  { loc: "59", group: Config flash, note: "MSPI pin." }
-  flash_mosi: { loc: "61", group: Config flash, note: "IO0. MSPI pin." }
-  flash_miso: { loc: "62", group: Config flash, note: "IO1. MSPI pin." }
-  flash_wp:   { loc: "57", group: Config flash, note: "IO2 / WP#. MSPI pin." }
-  flash_hold: { loc: "63", group: Config flash, note: "IO3 / HOLD#." }
+  # `dir` assumes single-bit SPI; quad SPI needs IO0-IO3 as inout.
+  flash_cs:   { loc: "60", dir: output, group: Config flash, note: "MSPI pin. Writing the flash from logic can overwrite the boot image." }
+  flash_clk:  { loc: "59", dir: output, group: Config flash, note: "MSPI pin." }
+  flash_mosi: { loc: "61", dir: output, group: Config flash, note: "IO0. MSPI pin." }
+  flash_miso: { loc: "62", dir: input, group: Config flash, note: "IO1. MSPI pin." }
+  flash_wp:   { loc: "57", dir: output, group: Config flash, note: "IO2 / WP#. MSPI pin." }
+  flash_hold: { loc: "63", dir: output, group: Config flash, note: "IO3 / HOLD#." }
 
   # --- Header-only GPIO (no on-board function on rev 3923) -----------------
   gpio_71: { loc: "71", group: Header GPIO, note: "J5-18. DS2 joystick 2 MISO." }

@@ -41,24 +41,7 @@ export function planYosys(
 	projectRoot: string,
 	layout: BuildLayout = buildLayout(projectRoot),
 ): YosysPlanResult {
-	const errors: string[] = [];
-
-	const readLines: string[] = [];
-	for (const source of project.sources) {
-		if (SYSTEMVERILOG_RE.test(source)) {
-			readLines.push(`read_verilog -sv ${toUnix(source)}`);
-		} else if (VERILOG_RE.test(source)) {
-			readLines.push(`read_verilog ${toUnix(source)}`);
-		} else {
-			errors.push(
-				`Source "${source}" is not Verilog or SystemVerilog. ` +
-					'VHDL synthesis (via the GHDL plugin) is not wired up yet.',
-			);
-		}
-	}
-	if (readLines.length === 0 && errors.length === 0) {
-		errors.push('The project lists no HDL sources to synthesize.');
-	}
+	const { readLines, errors } = readSourceCommands(project);
 	if (errors.length > 0) {
 		return { ok: false, errors };
 	}
@@ -93,6 +76,31 @@ export function planYosys(
 			args: ['-s', scriptRelPath],
 		},
 	};
+}
+
+/** One `read_verilog` line per source; shared with the top-port query. */
+export function readSourceCommands(project: FpgaProject): {
+	readonly readLines: string[];
+	readonly errors: string[];
+} {
+	const readLines: string[] = [];
+	const errors: string[] = [];
+	for (const source of project.sources) {
+		if (SYSTEMVERILOG_RE.test(source)) {
+			readLines.push(`read_verilog -sv ${toUnix(source)}`);
+		} else if (VERILOG_RE.test(source)) {
+			readLines.push(`read_verilog ${toUnix(source)}`);
+		} else {
+			errors.push(
+				`Source "${source}" is not Verilog or SystemVerilog. ` +
+					'VHDL synthesis (via the GHDL plugin) is not wired up yet.',
+			);
+		}
+	}
+	if (readLines.length === 0 && errors.length === 0) {
+		errors.push('The project lists no HDL sources to synthesize.');
+	}
+	return { readLines, errors };
 }
 
 function toUnix(p: string): string {

@@ -241,11 +241,26 @@ intended successor (Azure DevOps retires global PATs on 2026-12-01).
   vs automated download), invalid options greyed out, "restore defaults" and
   "save" actions that scaffold the project. Built on the finished
   board / toolchain / programmer subsystems.
-- **Visual IO planner** — a package/pin grid; assign top-level ports to
-  physical pins by drag-and-drop; round-trips the board's `.cst`. Pin data
-  from Project Apicula's device databases. No open-source equivalent exists;
-  `nextpnr`'s Qt GUI floorplan view is the reference for rendering the
-  fabric.
+- **Board pin diagram (v0.3)** — for a known board: a drawing of its
+  headers with each pin's number, and what is assigned to it next to it
+  (STM32CubeMX-style), plus the on-board peripherals by group. Uses the board
+  file's `headers`, `group` and `note`, so the pin numbers stay visible after
+  the headers are soldered.
+- **Chip-level IO planner (v0.3)** — for custom hardware or a bare chip: a
+  package/pin grid; assign top-level ports to physical pins; pin data from
+  Project Apicula's device databases. Easier to recreate for a new FPGA than
+  a board drawing. No open-source equivalent exists; `nextpnr`'s Qt GUI
+  floorplan view is the reference for rendering the fabric.
+
+- **Custom board files (v0.4)** — load board files from the user's own
+  folder (a setting and/or `boards/` in the project) next to the shipped
+  ones, through the same validator, and document the format. Waits for the
+  format to settle after the v0.3 diagram and IO planner. The chip pin grid
+  belongs to the FPGA package, not the board, so it would be a separate
+  device file that board files point to.
+
+  Both are views of the same port → pin mapping (`src/project/pinmap.ts`)
+  and write the `.cst` through it, not through a writer of their own.
 - **Floorplanner** — placement-region constraints for P&R. Lower priority.
 
 ### Toolchain
