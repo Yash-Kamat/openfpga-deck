@@ -7,6 +7,7 @@ import { buildDirs, buildLayout } from '../../build/layout';
 import { planYosys } from '../../build/yosys';
 import { planNextpnr } from '../../build/nextpnr';
 import { planGowinPack } from '../../build/gowinPack';
+import { projectConfigModes } from '../../build/configPins';
 import { runStep, type ProcessResult, type ProcessSpec } from '../../build/runStep';
 import { acquireBuildLock, isBuildRunning, releaseBuildLock } from '../../build/lock';
 import { synthesize, type SynthesizeIo } from '../../build/synthesize';
@@ -155,6 +156,43 @@ describe('planNextpnr', () => {
 				assert.equal(result.plan.args.includes('--freq'), false);
 			}
 		}
+	});
+});
+
+describe('dual-purpose config pins', () => {
+	it('adds sspi_as_gpio to nextpnr and gowin_pack, mspi only to gowin_pack', () => {
+		const modes = new Set(['mspi', 'sspi'] as const);
+		const layout = buildLayout(ROOT);
+		const pnr = planNextpnr(project(['src/top.v']), board(), ROOT, layout, modes);
+		const pack = planGowinPack(project(['src/top.v']), board(), ROOT, layout, modes);
+		assert.ok(pnr.ok && pack.ok);
+		if (pnr.ok && pack.ok) {
+			assert.match(pnr.plan.args.join(' '), /--vopt sspi_as_gpio/);
+			assert.equal(pnr.plan.args.join(' ').includes('mspi'), false);
+			assert.deepEqual(pack.plan.args.slice(0, 4), ['-d', 'GW2A-18C', '--mspi_as_gpio', '--sspi_as_gpio']);
+		}
+	});
+
+	it('detects them from the project .cst locs', async () => {
+		const b = validateBoard({
+			id: 'demo',
+			name: 'Demo',
+			fpga: { part: 'p', family: 'f' },
+			synth: { family: 'gw2a' },
+			programmer: { board: 'demo' },
+			configPins: { sspi: ['54'], mspi: ['60'] },
+		});
+		assert.ok(b.ok);
+		if (!b.ok) {
+			return;
+		}
+		const files: Record<string, string> = {
+			[path.join(ROOT, 'constraints', 'top.cst')]: 'IO_LOC "clk" 4;\nIO_LOC "din" 54;\n',
+		};
+		const readFile = async (f: string): Promise<string> => files[f] ?? Promise.reject(new Error('nope'));
+		assert.deepEqual([...(await projectConfigModes(project([]), b.board, ROOT, { readFile }))], ['sspi']);
+		const missing = { ...project([]), constraints: ['constraints/other.cst'] };
+		assert.deepEqual([...(await projectConfigModes(missing, b.board, ROOT, { readFile }))], []);
 	});
 });
 

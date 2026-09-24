@@ -2,6 +2,24 @@
 
 All notable changes to OpenFPGA Deck are documented here.
 
+## Unreleased
+
+### Added
+
+- **Full Tang Nano 20K pin map**, from Sipeed's rev 3923 schematic: HDMI,
+  RGB LCD, microSD, audio, BL616 SPI, config flash, the MS5351 clocks and
+  header GPIO, each pin with a `group` and a `note`, plus the J5/J6 header
+  layout. Tested on hardware: LEDs, buttons, UART, WS2812, MS5351 clocks
+  and HDMI video. The other groups are marked untested in the board file.
+- The build releases the dual-purpose configuration pins as GPIO when a
+  design uses them: nextpnr `--vopt sspi_as_gpio`, and gowin_pack
+  `--sspi_as_gpio` / `--mspi_as_gpio`.
+
+### Changed
+
+- Tang Nano 20K buttons are renamed `btn_s1` / `btn_s2` and are active-high
+  (pull-down), as on the schematic.
+
 ## 0.1.1 — 2026-09-24
 
 ### Changed

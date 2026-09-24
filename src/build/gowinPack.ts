@@ -7,7 +7,7 @@
  */
 
 import * as path from 'node:path';
-import type { Board } from '../boards/schema';
+import type { Board, ConfigPinMode } from '../boards/schema';
 import type { FpgaProject } from '../project/schema';
 import { buildLayout, type BuildLayout } from './layout';
 
@@ -30,6 +30,7 @@ export function planGowinPack(
 	board: Board,
 	projectRoot: string,
 	layout: BuildLayout = buildLayout(projectRoot),
+	configModes: ReadonlySet<ConfigPinMode> = new Set(),
 ): GowinPackPlanResult {
 	if (!board.fpga.family) {
 		return {
@@ -50,7 +51,14 @@ export function planGowinPack(
 			pnrJsonRelPath,
 			bitstreamPath,
 			bitstreamRelPath,
-			args: ['-d', board.fpga.family, '-o', bitstreamRelPath, pnrJsonRelPath],
+			args: [
+				'-d',
+				board.fpga.family,
+				...[...configModes].sort().map((mode) => `--${mode}_as_gpio`),
+				'-o',
+				bitstreamRelPath,
+				pnrJsonRelPath,
+			],
 		},
 	};
 }

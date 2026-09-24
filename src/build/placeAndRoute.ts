@@ -10,6 +10,7 @@
 import * as path from 'node:path';
 import type { Board } from '../boards/schema';
 import type { FpgaProject } from '../project/schema';
+import { projectConfigModes } from './configPins';
 import { buildLayout } from './layout';
 import { planNextpnr } from './nextpnr';
 import { formatPnrReport, parsePnrReport } from './pnrReport';
@@ -39,7 +40,8 @@ export async function placeAndRoute(
 	const layout = buildLayout(req.projectRoot);
 	const logFile = path.join(layout.logDir, 'pnr.log');
 
-	const planned = planNextpnr(req.project, req.board, req.projectRoot, layout);
+	const configModes = await projectConfigModes(req.project, req.board, req.projectRoot, io);
+	const planned = planNextpnr(req.project, req.board, req.projectRoot, layout, configModes);
 	if (!planned.ok) {
 		return { ok: false, canceled: false, logFile, summary: planned.errors.join(' ') };
 	}
