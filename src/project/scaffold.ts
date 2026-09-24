@@ -1,5 +1,6 @@
 /**
- * Turn a few wizard answers into the files a new OpenFPGA Deck project needs.
+ * Turn the Project Settings panel's create-mode answers into the files a new
+ * OpenFPGA Deck project needs.
  * Pure — no filesystem, no VS Code — so it is straightforward to unit-test.
  */
 

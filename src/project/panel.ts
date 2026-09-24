@@ -71,7 +71,7 @@ class ProjectPanel {
 		const media = vscode.Uri.joinPath(context.extensionUri, 'media');
 		this.panel = vscode.window.createWebviewPanel(
 			'openfpga.projectSettings',
-			'OpenFPGA Project',
+			'OpenFPGA Project Settings',
 			vscode.ViewColumn.Active,
 			{ enableScripts: true, localResourceRoots: [media], retainContextWhenHidden: true },
 		);
@@ -468,7 +468,7 @@ function html(webview: vscode.Webview, media: vscode.Uri): string {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="${css}">
-<title>OpenFPGA Project</title>
+<title>OpenFPGA Project Settings</title>
 </head>
 <body>
 <main id="app"><p>Loading…</p></main>

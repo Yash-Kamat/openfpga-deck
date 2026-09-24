@@ -418,7 +418,7 @@
 						'tr',
 						{ class: level },
 						h('td', { class: 'mono' }, S.starter === 'pins' && i === 0 ? nameCell(port, key) : bit),
-						h('td', {}, i === 0 ? dirCell(port, key) : ''),
+						h('td', {}, i === 0 ? dirCell(port, key) : h('span', { class: 'hint' }, port.dir)),
 						h('td', {}, select),
 						h(
 							'td',
@@ -437,7 +437,11 @@
 			h('thead', {}, h('tr', {}, COLUMNS.map((c, i) => h('th', {}, c.title, i < COLUMNS.length - 1 ? resizer(i) : null)))),
 			h('tbody', {}, rows),
 		);
-		table.querySelectorAll('col').forEach((col, i) => (col.style.width = `${S.colWidths[COLUMNS[i].key]}px`));
+		// The actions column is empty unless pins are being picked.
+		table.querySelectorAll('col').forEach((col, i) => {
+			const key = COLUMNS[i].key;
+			col.style.width = key === 'actions' && S.starter !== 'pins' ? '0' : `${S.colWidths[key]}px`;
+		});
 		return h('div', { class: 'table-scroll' }, table);
 	}
 
@@ -453,7 +457,9 @@
 		{ key: 'status', title: 'Status' },
 		{ key: 'actions', title: '' },
 	];
-	S.colWidths = { port: 170, dir: 110, pin: 260, status: 320, actions: 130 };
+	// Sum = the 940 px content width (body max-width 980 minus padding), so the
+	// table fits without a scrollbar; table width 100% hands out any spare room.
+	S.colWidths = { port: 160, dir: 100, pin: 250, status: 300, actions: 130 };
 	const MIN_WIDTH = 40;
 
 	function resizer(index) {
@@ -645,7 +651,7 @@
 		const errors = S.issues.filter((i) => i.severity === 'error').length;
 		const warnings = S.issues.length - errors;
 		const summary = [];
-		if (errors) summary.push(h('span', { class: 'msg error' }, `⛔ ${errors} pin conflict${errors > 1 ? 's' : ''}; fix them to save.`));
+		if (errors) summary.push(h('span', { class: 'msg error' }, `⛔ ${errors} pin conflict${errors > 1 ? 's' : ''}; fix ${errors > 1 ? 'them' : 'it'} to save.`));
 		if (warnings) summary.push(h('span', { class: 'msg warning' }, `⚠ ${warnings} warning${warnings > 1 ? 's' : ''}.`));
 		const r = S.result;
 		const result = !r

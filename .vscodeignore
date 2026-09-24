@@ -3,9 +3,9 @@
 .github/**
 src/**
 out/test/**
-examples/**
 docs/**
-images/make-icon.mjs
+images/icon.svg
+images/screenshots/**
 ROADMAP.md
 CONTRIBUTING.md
 .gitignore
