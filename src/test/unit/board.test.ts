@@ -87,6 +87,12 @@ describe('pin groups, headers and config pins', () => {
 		}
 	});
 
+	it('keeps a pin direction and rejects an unknown one', () => {
+		const ok = validateBoard({ ...VALID, pins: { led: { loc: '15', dir: 'output' } } });
+		assert.ok(ok.ok && ok.board.pins.led.dir === 'output');
+		assert.equal(validateBoard({ ...VALID, pins: { led: { loc: '15', dir: 'out' } } }).ok, false);
+	});
+
 	it('rejects an unknown config pin mode', () => {
 		assert.equal(validateBoard({ ...VALID, configPins: { jtag: ['5'] } }).ok, false);
 	});

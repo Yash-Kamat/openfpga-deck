@@ -15,6 +15,15 @@ All notable changes to OpenFPGA Deck are documented here.
   design uses them: nextpnr `--vopt sspi_as_gpio`, and gowin_pack
   `--sspi_as_gpio` / `--mspi_as_gpio`.
 
+- **Port → pin mapping** (groundwork for the project settings panel; no UI
+  yet): read the top module's ports with yosys, check a port → board-pin
+  mapping (pins used twice, unknown pins, unmapped ports, direction
+  clashes), generate the `.cst` from it or read it back from an existing
+  one, and generate a top module from chosen board pins.
+- Board pins take an optional `dir` (`input` / `output` / `inout`), the
+  default direction for a generated port. Set on the Tang Nano 20K except
+  the BL616 SPI link and header GPIO.
+
 ### Changed
 
 - Tang Nano 20K buttons are renamed `btn_s1` / `btn_s2` and are active-high
