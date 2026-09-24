@@ -17,7 +17,11 @@ import { parseCst } from '../boards/cst';
 import type { BoardRegistry } from '../boards/registry';
 import type { Board, PortDirection } from '../boards/schema';
 import { nodeProcessRunner } from '../build/nodeProcess';
-import { resolveToolchain } from '../toolchain/resolve';
+import { REQUIRED_TOOLS, findAllToolchains } from '../toolchain/discovery';
+import { fetchReleaseInfo } from '../toolchain/install';
+import { nodeToolchainHost } from '../toolchain/nodeHost';
+import { resolveToolchain, toolchainDiscoverOptions } from '../toolchain/resolve';
+import { setActiveToolchain } from '../toolchain/ui';
 import { isInsideRoot, loadProject, PROJECT_FILE_NAME } from './loader';
 import { planProjectSave, type SaveRequest, type Starter } from './panelModel';
 import { mappingFromCst, planPinConstraints, portsFromBoardSignals, type PinMapping } from './pinmap';
@@ -72,8 +76,15 @@ class ProjectPanel {
 			{ enableScripts: true, localResourceRoots: [media], retainContextWhenHidden: true },
 		);
 		this.panel.webview.html = html(this.panel.webview, media);
+		// Keep section 4 in step with Select / Download Toolchain run from anywhere.
+		const configWatch = vscode.workspace.onDidChangeConfiguration((e) => {
+			if (e.affectsConfiguration('openfpga.toolchain')) {
+				this.sendToolchain();
+			}
+		});
 		this.panel.onDidDispose(() => {
 			current = undefined;
+			configWatch.dispose();
 		});
 		this.panel.webview.onDidReceiveMessage((msg: unknown) => {
 			this.handle(msg).catch((err: unknown) => {
@@ -134,10 +145,55 @@ class ProjectPanel {
 				return this.post({ type: 'sources', sources: await this.addFiles(this.safeSources(msg.sources)) });
 			case 'save':
 				return this.save(msg);
+			case 'toolchainUse': {
+				// Only a root discovery found; never a path typed into the page.
+				const root = str(msg.root);
+				if (findAllToolchains(toolchainDiscoverOptions(), nodeToolchainHost).some((t) => t.root === root)) {
+					await setActiveToolchain(root);
+				}
+				return;
+			}
+			case 'toolchainDownload':
+				await vscode.commands.executeCommand('openfpga.downloadToolchain', 'latest');
+				return this.sendToolchain();
+			case 'toolchainOther':
+				await vscode.commands.executeCommand('openfpga.selectToolchain');
+				return this.sendToolchain();
+			case 'toolchainCheck':
+				return this.checkForUpdates();
+		}
+	}
+
+	private sendToolchain(extra: Record<string, unknown> = {}): void {
+		const active = resolveToolchain();
+		const installed = findAllToolchains(toolchainDiscoverOptions(), nodeToolchainHost);
+		this.post({
+			type: 'toolchain',
+			active: active.ok
+				? {
+						root: active.toolchain.root,
+						tag: active.toolchain.tag ?? '',
+						tools: REQUIRED_TOOLS.map((id) => ({ id, version: active.toolchain.tools[id].version ?? '' })),
+					}
+				: undefined,
+			reason: active.ok ? '' : active.reason,
+			installed: installed.map((t) => ({ root: t.root, tag: t.tag ?? path.basename(t.root) })),
+			...extra,
+		});
+	}
+
+	private async checkForUpdates(): Promise<void> {
+		this.sendToolchain({ checking: true });
+		try {
+			const latest = (await fetchReleaseInfo('latest')).tag;
+			this.sendToolchain({ latest });
+		} catch (err) {
+			this.sendToolchain({ checkError: err instanceof Error ? err.message : String(err) });
 		}
 	}
 
 	private async sendInit(): Promise<void> {
+		this.sendToolchain();
 		const boards = this.boards.list().map((b) => ({ id: b.id, name: b.name, part: b.fpga.part, canBlink: canBlink(b) }));
 		const loaded = loadProject(this.root, undefined, this.boards.ids());
 		if (!loaded.ok) {

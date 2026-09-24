@@ -44,6 +44,8 @@ let inProgress = false;
 export async function downloadToolchainCommand(
 	context: vscode.ExtensionContext,
 	output: vscode.OutputChannel,
+	/** `'latest'` or a release tag; when omitted, the user is asked. */
+	requested?: unknown,
 ): Promise<void> {
 	if (inProgress) {
 		vscode.window.showWarningMessage('OpenFPGA Deck: a toolchain download is already running.');
@@ -63,7 +65,10 @@ export async function downloadToolchainCommand(
 		return;
 	}
 
-	const which = await pickRelease();
+	const which =
+		requested === 'latest' || (typeof requested === 'string' && tagLooksValid(requested))
+			? requested
+			: await pickRelease();
 	if (!which) {
 		return;
 	}

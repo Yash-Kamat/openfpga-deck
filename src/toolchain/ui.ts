@@ -102,8 +102,8 @@ export function registerToolchainUi(
 			await selectToolchain(output);
 			refresh();
 		}),
-		vscode.commands.registerCommand('openfpga.downloadToolchain', async () => {
-			await downloadToolchainCommand(context, output);
+		vscode.commands.registerCommand('openfpga.downloadToolchain', async (which?: unknown) => {
+			await downloadToolchainCommand(context, output, which);
 			refresh();
 		}),
 	);
@@ -199,11 +199,14 @@ async function selectToolchain(output: vscode.OutputChannel): Promise<void> {
 		return;
 	}
 
-	await vscode.workspace
-		.getConfiguration()
-		.update(SETTING_PATH, chosenRoot, vscode.ConfigurationTarget.Global);
+	await setActiveToolchain(chosenRoot);
 	output.appendLine(`Active toolchain set to: ${chosenRoot}`);
 	vscode.window.showInformationMessage(`OpenFPGA Deck: active toolchain set to ${chosenRoot}`);
+}
+
+/** Make `root` the active toolchain (user setting; see the header comment for why). */
+export async function setActiveToolchain(root: string): Promise<void> {
+	await vscode.workspace.getConfiguration().update(SETTING_PATH, root, vscode.ConfigurationTarget.Global);
 }
 
 async function promptForPath(): Promise<string | undefined> {

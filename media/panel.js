@@ -34,6 +34,7 @@
 		modules: [],
 		result: null,
 		saving: false,
+		toolchain: null,
 	};
 
 	const post = (msg) => vscode.postMessage(msg);
@@ -114,6 +115,9 @@
 				S.sources = m.sources;
 				if (S.starter === 'hdl') readPorts();
 				break;
+			case 'toolchain':
+				S.toolchain = m;
+				break;
 			case 'saveResult':
 				S.saving = false;
 				S.result = m;
@@ -171,6 +175,7 @@
 			basics(),
 			sources(),
 			pins(),
+			toolchain(),
 			saveBar(),
 		);
 		window.scrollTo(0, scroll);
@@ -586,6 +591,54 @@
 			},
 			'✕',
 		);
+	}
+
+	function toolchain() {
+		const t = S.toolchain;
+		if (!t) return section(4, 'Toolchain', h('p', { class: 'hint' }, 'Looking for OSS CAD Suite…'));
+		const have = !!t.active;
+		const download = (label, primary) =>
+			h('button', { class: primary ? '' : 'secondary', onclick: () => post({ type: 'toolchainDownload' }) }, label);
+		const children = [];
+		if (!have) {
+			children.push(
+				h('p', { class: 'msg warning' }, '⚠ No OSS CAD Suite found. Building needs one. ', t.reason || ''),
+				h('div', { class: 'row' }, download('Download latest', true), h('span', { class: 'hint' }, 'From YosysHQ on GitHub: about a 0.7 GB download, 2.5 GB installed (the 2026-08-28 release).')),
+			);
+		}
+		const versions = h(
+			'select',
+			{ id: 'toolchain-version', 'aria-label': 'Installed OSS CAD Suite versions', disabled: t.installed.length === 0, onchange: (e) => post({ type: 'toolchainUse', root: e.target.value }) },
+			t.installed.length ? null : h('option', {}, 'none installed'),
+			!have && t.installed.length ? h('option', { value: '', selected: true }, '— choose —') : null,
+			t.installed.map((i) => h('option', { value: i.root, selected: have && i.root === t.active.root, title: i.root }, i.tag)),
+		);
+		children.push(
+			field('Version', h('span', { class: 'row tight' }, versions, h('button', { class: 'secondary', onclick: () => post({ type: 'toolchainOther' }) }, 'Other folder…')), have ? t.active.root : ''),
+		);
+		if (have) {
+			children.push(
+				h('p', { class: 'hint mono' }, t.active.tools.map((x) => `${x.id} ${x.version || '(version unknown)'}`).join(' · ')),
+			);
+		}
+		let update = null;
+		if (t.checking) update = h('span', { class: 'hint' }, 'Checking GitHub…');
+		else if (t.checkError) update = h('span', { class: 'msg error' }, '⛔ ', t.checkError);
+		else if (t.latest && have) {
+			if (!t.active.tag) update = h('span', { class: 'hint' }, `Latest release: ${t.latest}. This install's folder name has no release date, so it can't be compared.`);
+			else if (t.latest > t.active.tag) update = h('span', { class: 'row tight' }, h('span', { class: 'msg warning' }, `A newer release is available: ${t.latest}.`), download(`Download ${t.latest}`, true));
+			else update = h('span', { class: 'msg ok' }, `✓ Up to date (${t.active.tag}).`);
+		}
+		children.push(
+			h(
+				'div',
+				{ class: 'row' },
+				h('button', { class: 'secondary', disabled: !have || t.checking, onclick: () => post({ type: 'toolchainCheck' }) }, 'Check for updates'),
+				update,
+			),
+			h('p', { class: 'hint' }, 'One OSS CAD Suite covers every supported board. Versions are kept side by side, so you can switch back.'),
+		);
+		return section(4, 'Toolchain', ...children);
 	}
 
 	function saveBar() {

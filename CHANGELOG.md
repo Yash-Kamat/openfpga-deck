@@ -14,15 +14,26 @@ All notable changes to OpenFPGA Deck are documented here.
 - The build releases the dual-purpose configuration pins as GPIO when a
   design uses them: nextpnr `--vopt sspi_as_gpio`, and gowin_pack
   `--sspi_as_gpio` / `--mspi_as_gpio`.
-
-- **Port → pin mapping** (groundwork for the project settings panel; no UI
-  yet): read the top module's ports with yosys, check a port → board-pin
-  mapping (pins used twice, unknown pins, unmapped ports, direction
+- **Project Settings panel** (replaces the QuickPick Initialize Project
+  wizard): a webview to create and edit a project. Opened by Initialize
+  Project, the empty-folder offer, the new ⚙ status-bar item, or
+  **OpenFPGA Deck: Project Settings**. Sections: project basics, source files
+  (outside files copied into `src/`), pins (blink example / pick pins with
+  generated top module / your own HDL; per-row conflict and direction
+  checks), and toolchain (active version, switch installed versions, check
+  for updates, download latest).
+- **Port → pin mapping** (used by the panel): read the top module's ports
+  with yosys, check a port → board-pin mapping (pins used twice, unknown pins, unmapped ports, direction
   clashes), generate the `.cst` from it or read it back from an existing
   one, and generate a top module from chosen board pins.
 - Board pins take an optional `dir` (`input` / `output` / `inout`), the
   default direction for a generated port. Set on the Tang Nano 20K except
   the BL616 SPI link and header GPIO.
+
+### Fixed
+
+- Source paths containing spaces broke synthesis (yosys split them); they are
+  now quoted.
 
 ### Changed
 

@@ -18,9 +18,15 @@ More boards and families are planned.
 
 ## What it does
 
-- **Initialize Project** — a guided wizard scaffolds `fpga.yaml`, a Verilog
-  (or SystemVerilog) top module, a Gowin `.cst` constraints file generated
-  from the board definition, and a `build/` layout.
+- **Project Settings panel** — create a project (**Initialize Project**, or
+  the offer in an empty folder) and edit it later (the ⚙ in the status bar).
+  Start from the blink example, from board pins you pick (the top module is
+  generated), or from your own HDL (its ports are read with yosys). Map each
+  port to a board pin from a list grouped by peripheral; pins used twice,
+  unknown pins and direction mismatches are flagged. The `.cst` is generated
+  from the mapping, and a Save that would change it asks first, with a diff.
+  The panel also shows the active OSS CAD Suite, switches between installed
+  versions and checks GitHub for a newer release.
 - **Toolchain management** — finds an existing OSS CAD Suite on `PATH` or in
   common locations, or downloads a release straight from the official GitHub
   repo (integrity-checked), keeping each release side by side.
@@ -51,10 +57,10 @@ More boards and families are planned.
 ## Quick start
 
 1. Open an empty folder and trust it. OpenFPGA Deck offers to initialize a
-   project — accept, pick **Tang Nano 20K**, a top module name, **Verilog**,
-   and the **blink** starter design.
-2. If prompted, run **OpenFPGA Deck: Download Toolchain** (or point
-   `openfpga.toolchain.path` at an existing OSS CAD Suite).
+   project — accept. In the panel, keep **Tang Nano 20K** and the **Blink
+   example**, then click **Create project**.
+2. If section 4 of the panel says no toolchain was found, click **Download
+   latest** (or point `openfpga.toolchain.path` at an existing OSS CAD Suite).
 3. Click **⚡ Build** in the status bar (or run **OpenFPGA Deck: Build**).
 4. Plug in the board and click **🚀 Build and Program** → choose **SRAM**.
    The on-board LEDs blink.
