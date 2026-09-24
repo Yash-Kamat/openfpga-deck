@@ -149,7 +149,7 @@ function checkPaths(
 }
 
 /** True only if `rel` is a relative path that resolves to a location at or below `root`. */
-function isInsideRoot(root: string, rel: string): boolean {
+export function isInsideRoot(root: string, rel: string): boolean {
 	if (path.isAbsolute(rel)) {
 		return false;
 	}

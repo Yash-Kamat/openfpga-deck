@@ -51,6 +51,12 @@
         "category": "OpenFPGA Deck"
       },
       {
+        "command": "openfpga.projectSettings",
+        "title": "Project Settings",
+        "category": "OpenFPGA Deck",
+        "icon": "$(gear)"
+      },
+      {
         "command": "openfpga.validateProject",
         "title": "Validate Project",
         "category": "OpenFPGA Deck"

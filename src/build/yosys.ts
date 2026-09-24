@@ -78,7 +78,11 @@ export function planYosys(
 	};
 }
 
-/** One `read_verilog` line per source; shared with the top-port query. */
+/**
+ * One `read_verilog` line per source; shared with the top-port query.
+ * `-noblackbox`: yosys otherwise treats a module with no logic yet (a freshly
+ * generated top) as a black box and drops it.
+ */
 export function readSourceCommands(project: FpgaProject): {
 	readonly readLines: string[];
 	readonly errors: string[];
@@ -87,9 +91,9 @@ export function readSourceCommands(project: FpgaProject): {
 	const errors: string[] = [];
 	for (const source of project.sources) {
 		if (SYSTEMVERILOG_RE.test(source)) {
-			readLines.push(`read_verilog -sv ${toUnix(source)}`);
+			readLines.push(`read_verilog -noblackbox -sv ${yosysPath(source)}`);
 		} else if (VERILOG_RE.test(source)) {
-			readLines.push(`read_verilog ${toUnix(source)}`);
+			readLines.push(`read_verilog -noblackbox ${yosysPath(source)}`);
 		} else {
 			errors.push(
 				`Source "${source}" is not Verilog or SystemVerilog. ` +
@@ -101,6 +105,12 @@ export function readSourceCommands(project: FpgaProject): {
 		errors.push('The project lists no HDL sources to synthesize.');
 	}
 	return { readLines, errors };
+}
+
+/** A path for a yosys script: quoted when it has spaces (which would split it). */
+export function yosysPath(p: string): string {
+	const unix = toUnix(p);
+	return /[\s;#]/.test(unix) ? `"${unix}"` : unix;
 }
 
 function toUnix(p: string): string {

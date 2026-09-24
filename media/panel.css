@@ -1,0 +1,112 @@
+/* OpenFPGA Deck — Project Settings page. Colours come from the VS Code
+   theme, so the page follows light, dark and high-contrast themes. */
+
+body {
+	color: var(--vscode-foreground);
+	background: var(--vscode-editor-background);
+	font-family: var(--vscode-font-family);
+	font-size: var(--vscode-font-size);
+	padding: 0 20px 40px;
+	max-width: 980px;
+}
+
+h1 { font-size: 1.5em; font-weight: 600; margin: 20px 0 8px; }
+h2 {
+	font-size: 1.1em;
+	font-weight: 600;
+	margin: 28px 0 12px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-widget-border));
+}
+
+.field { display: grid; grid-template-columns: 140px minmax(0, 360px) 1fr; gap: 12px; align-items: center; margin: 8px 0; }
+.label { color: var(--vscode-foreground); }
+.hint { color: var(--vscode-descriptionForeground); font-size: 0.92em; }
+.mono { font-family: var(--vscode-editor-font-family); }
+
+input, select {
+	background: var(--vscode-input-background, var(--vscode-dropdown-background));
+	color: var(--vscode-input-foreground, var(--vscode-dropdown-foreground));
+	border: 1px solid var(--vscode-input-border, var(--vscode-dropdown-border, transparent));
+	padding: 4px 6px;
+	font: inherit;
+	border-radius: 2px;
+}
+input:focus, select:focus, button:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+select:disabled { opacity: 0.75; }
+
+button {
+	background: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+	border: 1px solid var(--vscode-button-border, transparent);
+	padding: 5px 14px;
+	font: inherit;
+	border-radius: 2px;
+	cursor: pointer;
+}
+button:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+button.secondary:hover:not(:disabled) { background: var(--vscode-button-secondaryHoverBackground); }
+button.icon { background: transparent; color: var(--vscode-foreground); padding: 0 6px; }
+button.icon:hover { background: var(--vscode-toolbar-hoverBackground); }
+
+.starter { border: none; padding: 0; margin: 12px 0 0; }
+.starter legend { margin-bottom: 6px; }
+.radio { display: block; margin: 4px 0; }
+.radio.disabled { opacity: 0.5; }
+
+.row { display: flex; gap: 8px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+.picker { margin-bottom: 12px; }
+ul.files { list-style: none; padding: 0; margin: 8px 0; }
+ul.files li { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+
+/* Fixed layout: columns keep their width whatever the Status text says;
+   long messages wrap inside their own column. */
+.table-scroll { overflow-x: auto; margin-top: 8px; }
+table.pins { border-collapse: collapse; table-layout: fixed; width: max-content; }
+table.pins th { position: relative; text-align: left; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-widget-border)); }
+table.pins td { padding: 4px 8px; vertical-align: top; overflow: hidden; overflow-wrap: anywhere; }
+table.pins tr + tr td { border-top: 1px solid var(--vscode-editorGroup-border, transparent); }
+/* Subtle column lines, the same colour VS Code uses for tree indent guides. */
+table.pins th + th, table.pins td + td { border-left: 1px solid var(--vscode-tree-inactiveIndentGuidesStroke, var(--vscode-editorGroup-border)); }
+table.pins select, table.pins input.portname { width: 100%; box-sizing: border-box; }
+.resizer { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 1; }
+.resizer:hover, .resizer:active { background: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder)); }
+/* While measuring for double-click-to-fit: natural widths, no wrapping. */
+table.pins.measuring td, table.pins.measuring th { white-space: nowrap; }
+table.pins.measuring select, table.pins.measuring input.portname { width: auto; }
+
+/* Rows with problems: a coloured bar on the left plus the icon and text in
+   the Status column, so colour is never the only signal. */
+tr.error td:first-child { box-shadow: inset 3px 0 0 var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground)); }
+tr.warning td:first-child { box-shadow: inset 3px 0 0 var(--vscode-inputValidation-warningBorder, var(--vscode-editorWarning-foreground)); }
+tr.error select { border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground)); }
+tr.warning select { border-color: var(--vscode-inputValidation-warningBorder, var(--vscode-editorWarning-foreground)); }
+
+.msg { margin: 2px 0; }
+.msg.error { color: var(--vscode-errorForeground); }
+.msg.warning { color: var(--vscode-editorWarning-foreground); }
+.msg.ok { color: var(--vscode-testing-iconPassed, var(--vscode-foreground)); }
+
+.savebar {
+	position: sticky;
+	bottom: 0;
+	display: flex;
+	gap: 16px;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-top: 28px;
+	padding: 12px 0;
+	background: var(--vscode-editor-background);
+	border-top: 1px solid var(--vscode-panel-border, var(--vscode-widget-border));
+}
+
+.row.tight { margin: 0; gap: 4px; flex-wrap: nowrap; }
+input.invalid { border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground)); }
+button.small { padding: 1px 8px; font-size: 0.9em; }
+td.actions { white-space: nowrap; }
+.row.tight input.portname { flex: 1; min-width: 0; }
