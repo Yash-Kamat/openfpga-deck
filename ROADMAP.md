@@ -212,6 +212,11 @@ intended successor (Azure DevOps retires global PATs on 2026-12-01).
 
 ### Board & programming
 
+- **Full Tang Nano 20K pin map** — Done. Every schematic pin (rev 3923) with
+  a `group` and `note`, the J5/J6 header map, and `configPins`: using an
+  SSPI/MSPI pin makes the build release it as GPIO. Tested on hardware:
+  LEDs, buttons, UART, WS2812, MS5351 clocks and HDMI TMDS. The other
+  groups come from the schematic only.
 - **Flash backup** — Phase 8b lands the backup-before-write prompt and
   `Write File to Board`; a later pass may keep a rotating set of dumps and a
   one-click "restore latest".

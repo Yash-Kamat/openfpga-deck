@@ -9,7 +9,7 @@
  */
 
 import * as path from 'node:path';
-import type { Board } from '../boards/schema';
+import type { Board, ConfigPinMode } from '../boards/schema';
 import type { FpgaProject } from '../project/schema';
 import { buildLayout, type BuildLayout } from './layout';
 
@@ -37,6 +37,7 @@ export function planNextpnr(
 	board: Board,
 	projectRoot: string,
 	layout: BuildLayout = buildLayout(projectRoot),
+	configModes: ReadonlySet<ConfigPinMode> = new Set(),
 ): NextpnrPlanResult {
 	const errors: string[] = [];
 
@@ -61,6 +62,9 @@ export function planNextpnr(
 	const args = ['--device', board.fpga.part, '--vopt', `family=${board.fpga.family}`];
 	for (const cst of cstFiles) {
 		args.push('--vopt', `cst=${toUnix(cst)}`);
+	}
+	if (configModes.has('sspi')) {
+		args.push('--vopt', 'sspi_as_gpio');
 	}
 	// Target frequency for otherwise-unconstrained clocks, so the timing
 	// report reflects the board's real clock rather than nextpnr's default.

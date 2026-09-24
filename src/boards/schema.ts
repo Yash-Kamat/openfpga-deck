@@ -32,7 +32,20 @@ export interface PinAttributes {
 export interface BoardPin extends PinAttributes {
 	/** Physical location: a pin number ("4"), a pair ("33,34"), or a ball ("H11"). */
 	readonly loc: string;
+	/** Peripheral this pin belongs to, e.g. "LEDs", "HDMI" — groups the pin picker. */
+	readonly group?: string;
+	/** Free-text caveat shown next to the pin (sharing, polarity, …). */
+	readonly note?: string;
 }
+
+/**
+ * Dual-purpose configuration pins that need the toolchain told to release
+ * them as GPIO when a design uses them (Gowin: SSPI → nextpnr
+ * `--vopt sspi_as_gpio` + gowin_pack `--sspi_as_gpio`; MSPI → gowin_pack
+ * `--mspi_as_gpio`).
+ */
+export type ConfigPinMode = 'sspi' | 'mspi';
+const CONFIG_PIN_MODES: readonly ConfigPinMode[] = ['sspi', 'mspi'];
 
 export interface BoardClock {
 	readonly signal: string;
@@ -66,6 +79,10 @@ export interface Board {
 	/** IO attribute defaults applied to every pin unless the pin overrides them. */
 	readonly defaults: PinAttributes;
 	readonly pins: Readonly<Record<string, BoardPin>>;
+	/** Pin headers: name -> physical header pins in order; each entry is a loc or a rail ("GND", "3V3"). */
+	readonly headers: Readonly<Record<string, readonly string[]>>;
+	/** Locs that are dual-purpose configuration pins, by mode. */
+	readonly configPins: Readonly<Partial<Record<ConfigPinMode, readonly string[]>>>;
 }
 
 export interface BoardIssue {
@@ -146,6 +163,13 @@ export function validateBoard(raw: unknown): BoardValidation {
 		? parsePinAttributes(raw.defaults, 'defaults', fail)
 		: {};
 	const pins = validatePins(raw.pins, fail);
+	const headers = validateStringLists(raw.headers, 'headers', fail);
+	const configPins = validateStringLists(raw.configPins, 'configPins', fail);
+	for (const mode of Object.keys(configPins)) {
+		if (!(CONFIG_PIN_MODES as readonly string[]).includes(mode)) {
+			fail(`configPins."${mode}" is not one of ${CONFIG_PIN_MODES.join(', ')}.`);
+		}
+	}
 
 	if (errors.length > 0) {
 		return { ok: false, errors };
@@ -168,6 +192,8 @@ export function validateBoard(raw: unknown): BoardValidation {
 			clocks,
 			defaults,
 			pins,
+			headers,
+			configPins,
 		},
 	};
 }
@@ -240,9 +266,57 @@ function validatePins(raw: unknown, fail: (m: string) => void): Record<string, B
 			fail(`pins."${signal}" must have a non-empty string "loc".`);
 			continue;
 		}
-		out[signal] = { loc: value.loc, ...parsePinAttributes(value, `pins."${signal}"`, fail) };
+		out[signal] = {
+			loc: value.loc,
+			group: optionalStr(value.group, `pins."${signal}".group`, fail),
+			note: optionalStr(value.note, `pins."${signal}".note`, fail),
+			...parsePinAttributes(value, `pins."${signal}"`, fail),
+		};
 	}
 	return out;
+}
+
+function validateStringLists(
+	raw: unknown,
+	key: string,
+	fail: (m: string) => void,
+): Record<string, string[]> {
+	if (raw === undefined) {
+		return {};
+	}
+	if (!isObject(raw)) {
+		fail(`"${key}" must be a mapping of name to list.`);
+		return {};
+	}
+	const out: Record<string, string[]> = {};
+	for (const [name, list] of Object.entries(raw)) {
+		if (!Array.isArray(list)) {
+			fail(`${key}."${name}" must be a list.`);
+			continue;
+		}
+		out[name] = list.map(String);
+	}
+	return out;
+}
+
+/**
+ * Which dual-purpose configuration modes a design needs released as GPIO,
+ * given the locs its constraints use. A loc may be a pair ("33,34").
+ */
+export function configModesFor(board: Board, locs: Iterable<string>): Set<ConfigPinMode> {
+	const used = new Set<string>();
+	for (const loc of locs) {
+		for (const part of loc.split(',')) {
+			used.add(part.trim());
+		}
+	}
+	const modes = new Set<ConfigPinMode>();
+	for (const mode of CONFIG_PIN_MODES) {
+		if (board.configPins[mode]?.some((loc) => used.has(loc))) {
+			modes.add(mode);
+		}
+	}
+	return modes;
 }
 
 function parsePinAttributes(

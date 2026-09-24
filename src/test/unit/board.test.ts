@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
-import { pinAttributes, validateBoard } from '../../boards/schema';
+import { configModesFor, pinAttributes, validateBoard } from '../../boards/schema';
 import { loadBoardRegistry, nodeBoardFsHost, type BoardFsHost } from '../../boards/registry';
 
 const VALID = {
@@ -58,6 +58,37 @@ describe('validateBoard', () => {
 	it('rejects a pin without a loc', () => {
 		const result = validateBoard({ ...VALID, pins: { clk: { iostd: 'LVCMOS33' } } });
 		assert.equal(result.ok, false);
+	});
+});
+
+describe('pin groups, headers and config pins', () => {
+	const result = validateBoard({
+		...VALID,
+		pins: { i2s_din: { loc: '54', group: 'Audio', note: 'SSPI pin.' }, tx: { loc: '33,34' } },
+		headers: { J5: ['5V', 'GND', 76] },
+		configPins: { sspi: ['52', '54'], mspi: ['60'] },
+	});
+
+	it('keeps group, note and headers (as strings)', () => {
+		assert.ok(result.ok);
+		if (result.ok) {
+			assert.equal(result.board.pins.i2s_din.group, 'Audio');
+			assert.equal(result.board.pins.i2s_din.note, 'SSPI pin.');
+			assert.deepEqual(result.board.headers.J5, ['5V', 'GND', '76']);
+		}
+	});
+
+	it('reports which config modes a set of locs needs, splitting pairs', () => {
+		assert.ok(result.ok);
+		if (result.ok) {
+			assert.deepEqual([...configModesFor(result.board, ['4', '15'])], []);
+			assert.deepEqual([...configModesFor(result.board, ['54'])], ['sspi']);
+			assert.deepEqual([...configModesFor(result.board, ['59, 60', '52'])], ['sspi', 'mspi']);
+		}
+	});
+
+	it('rejects an unknown config pin mode', () => {
+		assert.equal(validateBoard({ ...VALID, configPins: { jtag: ['5'] } }).ok, false);
 	});
 });
 
@@ -144,6 +175,11 @@ describe('shipped board definitions', () => {
 		assert.equal(tn20k?.fpga.part, 'GW2AR-LV18QN88C8/I7');
 		assert.equal(tn20k?.fpga.family, 'GW2A-18C');
 		assert.equal(tn20k?.programmer.board, 'tangnano20k');
+		// every header entry is a rail or a loc the board defines
+		const locs = new Set(Object.values(tn20k?.pins ?? {}).map((p) => p.loc));
+		for (const entry of Object.values(tn20k?.headers ?? {}).flat()) {
+			assert.ok(/^(GND|3V3|5V)$/.test(entry) || locs.has(entry), `header entry ${entry}`);
+		}
 		assert.equal(tn20k?.pins['led[0]'].loc, '15');
 	});
 });

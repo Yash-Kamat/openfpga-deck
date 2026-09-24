@@ -9,6 +9,7 @@
 import * as path from 'node:path';
 import type { Board } from '../boards/schema';
 import type { FpgaProject } from '../project/schema';
+import { projectConfigModes } from './configPins';
 import { planGowinPack } from './gowinPack';
 import { buildLayout } from './layout';
 import { runStep } from './runStep';
@@ -34,7 +35,8 @@ export async function packBitstream(req: PackRequest, io: PipelineIo): Promise<P
 	const layout = buildLayout(req.projectRoot);
 	const logFile = path.join(layout.logDir, 'pack.log');
 
-	const planned = planGowinPack(req.project, req.board, req.projectRoot, layout);
+	const configModes = await projectConfigModes(req.project, req.board, req.projectRoot, io);
+	const planned = planGowinPack(req.project, req.board, req.projectRoot, layout, configModes);
 	if (!planned.ok) {
 		return { ok: false, canceled: false, logFile, summary: planned.errors.join(' ') };
 	}
