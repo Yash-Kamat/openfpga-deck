@@ -51,6 +51,11 @@
         "category": "OpenFPGA Deck"
       },
       {
+        "command": "openfpga.clean",
+        "title": "Clean",
+        "category": "OpenFPGA Deck"
+      },
+      {
         "command": "openfpga.projectSettings",
         "title": "Project Settings",
         "category": "OpenFPGA Deck",

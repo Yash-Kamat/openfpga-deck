@@ -1,3 +1,4 @@
+import { isUpToDate } from '../../build/incremental';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
@@ -750,5 +751,14 @@ describe('packBitstream', () => {
 		const result = await packBitstream(req, h);
 		assert.equal(result.ok, false);
 		assert.match(result.summary, /no bitstream/);
+	});
+});
+
+describe('isUpToDate', () => {
+	it('skips only when the output exists and is not older than any input', () => {
+		assert.equal(isUpToDate(100, [50, 100]), true);
+		assert.equal(isUpToDate(100, [50, 101]), false);
+		assert.equal(isUpToDate(undefined, [50]), false);
+		assert.equal(isUpToDate(100, [50, undefined]), false);
 	});
 });
