@@ -38,8 +38,24 @@ export function validateProjectName(value: string): string | undefined {
 		: 'Use letters, digits, "-" and "_"; start with a letter or digit.';
 }
 
+/** Verilog / SystemVerilog keywords that cannot be used as names. */
+const HDL_KEYWORDS = new Set(
+	(
+		'always always_comb always_ff always_latch and assign automatic begin bit buf byte case casex casez ' +
+		'class const default defparam disable do else end endcase endfunction endgenerate endmodule endtask ' +
+		'enum for force forever fork function generate genvar if initial inout input int integer interface ' +
+		'localparam logic longint module nand negedge nor not or output package parameter posedge reg ' +
+		'repeat return shortint signed struct supply0 supply1 task time tri typedef union unsigned wait ' +
+		'while wire wor xnor xor'
+	).split(' '),
+);
+
 export function validateModuleName(value: string): string | undefined {
-	return MODULE_NAME_RE.test(value.trim()) ? undefined : 'Must be a valid HDL identifier.';
+	const name = value.trim();
+	if (!MODULE_NAME_RE.test(name)) {
+		return 'Must be a valid HDL identifier.';
+	}
+	return HDL_KEYWORDS.has(name) ? `"${name}" is a Verilog keyword.` : undefined;
 }
 
 /** Board signals that look like LEDs (`led`, `led[0]`, …), ordered numerically. */
@@ -54,18 +70,23 @@ export function canBlink(board: Board): boolean {
 	return board.pins.clk !== undefined && ledSignals(board).length > 0;
 }
 
+/** Board signals the blink starter uses: the clock and every LED. */
+export function blinkSignals(board: Board): string[] {
+	return ['clk', ...ledSignals(board)];
+}
+
 export function planScaffold(req: ScaffoldRequest): ScaffoldPlan {
 	const ext = req.language === 'verilog' ? 'v' : 'sv';
 	const hdlPath = `src/${req.top}.${ext}`;
 	const cstPath = `constraints/${req.top}.cst`;
 
 	const blink = req.design === 'blink' && canBlink(req.board);
-	const signals = blink ? ['clk', ...ledSignals(req.board)] : ['clk'];
+	const signals = blink ? blinkSignals(req.board) : ['clk'];
 
 	return {
 		dirs: ['src', 'constraints', 'build'],
 		files: [
-			{ path: 'fpga.yaml', content: fpgaYaml(req, hdlPath, cstPath) },
+			{ path: 'fpga.yaml', content: projectYaml(req.name, req.board.id, req.top, [hdlPath], cstPath) },
 			{ path: hdlPath, content: hdl(req, blink) },
 			{ path: cstPath, content: cst(req, signals) },
 			{ path: '.gitignore', content: '/build/\n' },
@@ -73,15 +94,22 @@ export function planScaffold(req: ScaffoldRequest): ScaffoldPlan {
 	};
 }
 
-function fpgaYaml(req: ScaffoldRequest, hdlPath: string, cstPath: string): string {
+/** A new project's `fpga.yaml`. */
+export function projectYaml(
+	name: string,
+	boardId: string,
+	top: string,
+	sources: readonly string[],
+	cstPath: string,
+): string {
 	return [
 		'# fpga.yaml — OpenFPGA Deck project',
-		`name: ${req.name}`,
-		`board: ${req.board.id}`,
-		`top: ${req.top}`,
+		`name: ${name}`,
+		`board: ${boardId}`,
+		`top: ${top}`,
 		'',
 		'sources:',
-		`  - ${hdlPath}`,
+		...sources.map((s) => `  - ${s}`),
 		'',
 		'constraints:',
 		`  - ${cstPath}`,

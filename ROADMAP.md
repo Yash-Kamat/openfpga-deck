@@ -236,11 +236,11 @@ intended successor (Azure DevOps retires global PATs on 2026-12-01).
   output-channel grammar was tried and rejected — its generic lexer colours
   every number and identifier. Trade-off: moves the build log from the
   Output panel to the Terminal panel.
-- **Init wizard — configuration panel** — an ESP-IDF-style webview: board and
-  FPGA part, detected USB ports, toolchain version selection (existing path
-  vs automated download), invalid options greyed out, "restore defaults" and
-  "save" actions that scaffold the project. Built on the finished
-  board / toolchain / programmer subsystems.
+- **Project Settings panel** — Done. An ESP-IDF-style webview replaces the
+  QuickPick wizard: project basics, source files (outside HDL copied in),
+  port → pin mapping with conflict checks, `.cst` generation with a
+  confirm-and-diff before overwriting, and toolchain version selection plus
+  update check. Not yet: detected USB ports / programmer selection.
 - **Board pin diagram (v0.3)** — for a known board: a drawing of its
   headers with each pin's number, and what is assigned to it next to it
   (STM32CubeMX-style), plus the on-board peripherals by group. Uses the board
@@ -267,8 +267,9 @@ intended successor (Azure DevOps retires global PATs on 2026-12-01).
 
 - **Uninstall Toolchain** — remove a managed release folder and/or its
   archive from a picker, with a guard against removing the active one.
-- **Check for Toolchain Updates** — compare the active release against the
-  latest and offer to fetch it.
+- **Check for Toolchain Updates** — Done, in the Project Settings panel
+  (section 4): compares the active release with GitHub's latest and offers
+  to download it.
 
 ### Reach
 

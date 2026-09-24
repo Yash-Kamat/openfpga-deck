@@ -91,14 +91,14 @@ pins:
 
   # --- HDMI (DVI TX) --------------------------------------------------------
   # Pairs on bank 5, AC-coupled; drive with TLVDS_OBUF (Apicula dvi-example).
-  tmds_clk_p:    { loc: "33", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G6." }
-  tmds_clk_n:    { loc: "34", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G5." }
-  "tmds_d_p[0]": { loc: "35", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G4." }
-  "tmds_d_n[0]": { loc: "36", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G3." }
-  "tmds_d_p[1]": { loc: "37", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD G2." }
-  "tmds_d_n[1]": { loc: "38", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD R7." }
-  "tmds_d_p[2]": { loc: "39", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD R6." }
-  "tmds_d_n[2]": { loc: "40", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "Shared with LCD R5." }
+  tmds_clk_p:    { loc: "33", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "LVDS pair: drive with TLVDS_OBUF (a single-ended driver fails in gowin_pack). Shared with LCD G6." }
+  tmds_clk_n:    { loc: "34", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "LVDS pair: drive with TLVDS_OBUF (a single-ended driver fails in gowin_pack). Shared with LCD G5." }
+  "tmds_d_p[0]": { loc: "35", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "LVDS pair: drive with TLVDS_OBUF (a single-ended driver fails in gowin_pack). Shared with LCD G4." }
+  "tmds_d_n[0]": { loc: "36", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "LVDS pair: drive with TLVDS_OBUF (a single-ended driver fails in gowin_pack). Shared with LCD G3." }
+  "tmds_d_p[1]": { loc: "37", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "LVDS pair: drive with TLVDS_OBUF (a single-ended driver fails in gowin_pack). Shared with LCD G2." }
+  "tmds_d_n[1]": { loc: "38", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "LVDS pair: drive with TLVDS_OBUF (a single-ended driver fails in gowin_pack). Shared with LCD R7." }
+  "tmds_d_p[2]": { loc: "39", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "LVDS pair: drive with TLVDS_OBUF (a single-ended driver fails in gowin_pack). Shared with LCD R6." }
+  "tmds_d_n[2]": { loc: "40", dir: output, group: HDMI, iostd: LVDS25, pull: none, note: "LVDS pair: drive with TLVDS_OBUF (a single-ended driver fails in gowin_pack). Shared with LCD R5." }
   hdmi_scl:      { loc: "53", dir: inout, group: HDMI, pull: none, note: "DDC SCL via level shifter, 2.2 kΩ pull-up on board; drive open-drain. SSPI pin. Also DS2 joystick 2 MOSI." }
   hdmi_sda:      { loc: "52", dir: inout, group: HDMI, pull: none, note: "DDC SDA via level shifter, 2.2 kΩ pull-up on board; drive open-drain. SSPI pin. Also DS2 joystick 2 CLK." }
   hdmi_hpd:      { loc: "26", dir: input, group: HDMI, pull: none, note: "Hot-plug detect (input, divided from 5 V). Shared with LCD VSYNC." }

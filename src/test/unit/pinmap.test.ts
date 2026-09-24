@@ -82,7 +82,7 @@ describe('top-module ports', () => {
 		if (planned.ok) {
 			const text = planned.plan.scriptText;
 			assert.match(text, /read_verilog -lib -specify \+\/gowin\/cells_sim\.v/);
-			assert.match(text, /read_verilog src\/top\.v\nread_verilog -sv src\/tx\.sv/);
+			assert.match(text, /read_verilog -noblackbox src\/top\.v\nread_verilog -noblackbox -sv src\/tx\.sv/);
 			assert.match(text, /hierarchy -top top\nselect top\nproc\nwrite_json -selected -noscopeinfo build\/yosys\/ports\.json/);
 			assert.deepEqual(planned.plan.args, ['-q', '-s', 'build/yosys/ports.ys']);
 		}
@@ -143,6 +143,13 @@ describe('planPinConstraints', () => {
 	});
 });
 
+describe('direction warnings', () => {
+	it('warns for inout too, whenever the port differs from the pin', () => {
+		const { issues } = planPinConstraints([port('d', 'inout')], { d: 'led[0]' }, board());
+		assert.match(issues[0].message, /d is an inout, but led\[0\] is normally an output/);
+	});
+});
+
 describe('mappingFromCst', () => {
 	it('recovers board signals by loc, using IO_TYPE to pick among shared pins', () => {
 		const { mapping, unmatched } = mappingFromCst(
@@ -158,6 +165,17 @@ describe('mappingFromCst', () => {
 		assert.deepEqual(mapping, { clk: 'clk', tx_p: 'tmds_clk_p', g: 'lcd_g4' });
 		assert.deepEqual(unmatched, ['x']);
 	});
+
+	it('prefers the board signal with the same name when attributes tie', () => {
+		const { mapping } = mappingFromCst(
+			[
+				{ signal: 'lcd_g4', loc: '33', attributes: { IO_TYPE: 'LVCMOS33' } },
+				{ signal: 'tmds_clk_p', loc: '33', attributes: {} },
+			],
+			board(),
+		);
+		assert.deepEqual(mapping, { lcd_g4: 'lcd_g4', tmds_clk_p: 'tmds_clk_p' });
+	});
 });
 
 describe('portsFromBoardSignals', () => {
@@ -168,9 +186,34 @@ describe('portsFromBoardSignals', () => {
 	});
 
 	it('splits a bus with gaps into scalars and applies direction overrides', () => {
-		const { ports, mapping } = portsFromBoardSignals(board(), ['led[0]', 'led[2]', 'gpio'], { gpio: 'inout' });
+		const { ports, mapping } = portsFromBoardSignals(board(), ['led[0]', 'led[2]', 'gpio'], { dirs: { gpio: 'inout' } });
 		assert.deepEqual(ports, [port('led_0', 'output'), port('led_2', 'output'), port('gpio', 'inout')]);
 		assert.deepEqual(mapping, { led_0: 'led[0]', led_2: 'led[2]', gpio: 'gpio' });
+	});
+
+	it('renames ports by their default name and reports those keys', () => {
+		const { ports, mapping, keys } = portsFromBoardSignals(board(), ['clk', 'led[0]', 'led[1]'], {
+			dirs: { led: 'inout' },
+			names: { led: 'status' },
+		});
+		assert.deepEqual(keys, ['clk', 'led']);
+		assert.deepEqual(ports[1], port('status', 'inout', 2));
+		assert.deepEqual(mapping, { clk: 'clk', 'status[0]': 'led[0]', 'status[1]': 'led[1]' });
+	});
+
+	it('splits only the buses named in ungroup', () => {
+		const { keys } = portsFromBoardSignals(board(), ['led[0]', 'led[1]', 'led[2]'], { ungroup: ['led'] });
+		assert.deepEqual(keys, ['led_0', 'led_1', 'led_2']);
+	});
+
+	it('gives every pin its own renamable port with buses off', () => {
+		const { ports, mapping, keys } = portsFromBoardSignals(board(), ['led[0]', 'led[1]'], {
+			names: { led_1: 'busy' },
+			buses: false,
+		});
+		assert.deepEqual(keys, ['led_0', 'led_1']);
+		assert.deepEqual(ports, [port('led_0', 'output'), port('busy', 'output')]);
+		assert.deepEqual(mapping, { led_0: 'led[0]', busy: 'led[1]' });
 	});
 
 	it('round-trips: generated ports + mapping give a clean .cst', () => {

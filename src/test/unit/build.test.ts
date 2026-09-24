@@ -64,8 +64,13 @@ describe('planYosys', () => {
 		if (!result.ok) {
 			return;
 		}
-		assert.match(result.plan.scriptText, /^read_verilog src\/top\.v$/m);
-		assert.match(result.plan.scriptText, /^read_verilog -sv src\/pll\.sv$/m);
+		assert.match(result.plan.scriptText, /^read_verilog -noblackbox src\/top\.v$/m);
+		assert.match(result.plan.scriptText, /^read_verilog -noblackbox -sv src\/pll\.sv$/m);
+	});
+
+	it('quotes source paths that contain spaces', () => {
+		const result = planYosys(project(['my src/top file.v']), board(), ROOT);
+		assert.ok(result.ok && /^read_verilog -noblackbox "my src\/top file\.v"$/m.test(result.plan.scriptText));
 		assert.match(result.plan.scriptText, /^synth_gowin -top top -json build\/yosys\/top\.json$/m);
 	});
 

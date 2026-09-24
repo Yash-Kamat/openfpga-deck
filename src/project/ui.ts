@@ -8,7 +8,8 @@ import * as vscode from 'vscode';
 import { loadProject, PROJECT_FILE_NAME, type LoadProjectResult } from './loader';
 import type { ConfigIssue } from './schema';
 import type { BoardRegistry } from '../boards/registry';
-import { initProjectCommand, offerInitForEmptyFolder } from './initCommand';
+import { offerInitForEmptyFolder } from './initCommand';
+import { openProjectPanel, registerPreviewProvider } from './panel';
 
 /** File extensions whose saving should re-check the project. */
 const PROJECT_FILE_RE = /\.(sv|svh|v|vh|vhd|vhdl|cst|ya?ml)$/i;
@@ -20,7 +21,13 @@ export function registerProjectUi(
 ): void {
 	const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 89);
 	status.command = 'openfpga.validateProject';
-	context.subscriptions.push(status);
+	// Just right of the project indicator: opens the Project Settings panel.
+	const gear = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 88);
+	gear.text = '$(gear)';
+	gear.tooltip = 'OpenFPGA Deck: project settings';
+	gear.command = 'openfpga.projectSettings';
+	context.subscriptions.push(status, gear);
+	registerPreviewProvider(context);
 
 	const projectRoot = (): string | undefined =>
 		vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -29,16 +36,19 @@ export function registerProjectUi(
 		const root = projectRoot();
 		if (!root) {
 			status.hide();
+			gear.hide();
 			return;
 		}
 		const result = loadProject(root, undefined, boards.ids());
 		if (!result.ok && result.configPath === undefined) {
 			// No fpga.yaml in this workspace — nothing to validate.
 			status.hide();
+			gear.hide();
 			return;
 		}
 		applyStatus(status, result);
 		status.show();
+		gear.show();
 	};
 
 	const watcher = vscode.workspace.createFileSystemWatcher(`**/${PROJECT_FILE_NAME}`);
@@ -56,10 +66,8 @@ export function registerProjectUi(
 			runValidate(output, boards);
 			refresh();
 		}),
-		vscode.commands.registerCommand('openfpga.initProject', async () => {
-			await initProjectCommand(output, boards);
-			refresh();
-		}),
+		vscode.commands.registerCommand('openfpga.initProject', () => openProjectPanel(context, boards)),
+		vscode.commands.registerCommand('openfpga.projectSettings', () => openProjectPanel(context, boards)),
 	);
 
 	refresh();
