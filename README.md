@@ -41,6 +41,10 @@ More boards and families are planned.
   the current flash contents to `build/backup/`. **Write File to Board**
   writes any `.fs` bitstream or `.bin` image you pick — to restore a backup
   or flash a prebuilt bitstream.
+- **Incremental builds** — only the stages whose inputs changed are re-run;
+  **Clean** deletes the build output (flash backups are kept).
+- **Problems panel** — synthesis, place & route and packing errors appear on
+  the HDL line or the `.cst` line of the port involved.
 - A compact status-bar cluster for the build actions, with a Cancel button
   while a build runs.
 

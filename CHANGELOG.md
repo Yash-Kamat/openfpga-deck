@@ -22,6 +22,12 @@ All notable changes to OpenFPGA Deck are documented here.
   generated top module / your own HDL; per-row conflict and direction
   checks), and toolchain (active version, switch installed versions, check
   for updates, download latest).
+- **Errors in the Problems panel**: yosys, nextpnr and gowin_pack problems
+  are shown on the HDL line (yosys), the `.cst` line of the port involved
+  (nextpnr / gowin_pack pin and IO errors), or `fpga.yaml` when nothing more
+  precise is known. Each tool's entries are replaced when it runs again.
+- **Clean** command: deletes `build/`, keeping flash backups in
+  `build/backup/`.
 - **Port → pin mapping** (used by the panel): read the top module's ports
   with yosys, check a port → board-pin mapping (pins used twice, unknown pins, unmapped ports, direction
   clashes), generate the `.cst` from it or read it back from an existing
@@ -37,6 +43,13 @@ All notable changes to OpenFPGA Deck are documented here.
 
 ### Changed
 
+- **Incremental builds.** A stage is skipped when its output is newer than
+  its inputs (synthesis: `fpga.yaml` + sources; place & route: the netlist
+  + `.cst`; packing: the routed netlist); switching toolchain version
+  rebuilds everything. **Build** and **Build and Program** now skip
+  up-to-date stages (run **Clean** first for a full rebuild); a stage command
+  such as **Place and Route** always runs its own stage. Before, an earlier
+  stage was reused whenever its file existed, even after the HDL changed.
 - Tang Nano 20K buttons are renamed `btn_s1` / `btn_s2` and are active-high
   (pull-down), as on the schematic.
 

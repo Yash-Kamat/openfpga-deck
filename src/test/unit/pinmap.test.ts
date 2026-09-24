@@ -137,7 +137,7 @@ describe('planPinConstraints', () => {
 		);
 		assert.match(issues[0].message, /b and a both use pin 33/);
 		assert.match(issues[1].message, /"nope"/);
-		assert.match(issues[2].message, /d is not mapped/);
+		assert.match(issues[2].message, /d has no pin yet/);
 		assert.match(issues[3].message, /e is an input, but led\[0\] is normally an output/);
 		assert.match(issues[4].message, /gone is mapped but is not a port/);
 	});

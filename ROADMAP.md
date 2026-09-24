@@ -190,20 +190,18 @@ intended successor (Azure DevOps retires global PATs on 2026-12-01).
 
 ### Build pipeline
 
-- **Diagnostics** — best-effort regex parsing of Yosys and nextpnr logs into
-  `vscode.Diagnostic`s anchored to the right source lines, in the Problems
-  panel. Not a full parser. (Was a v0.1 phase; deferred to ship sooner.)
+- **Diagnostics** — Done. Best-effort parsing of yosys, nextpnr and
+  gowin_pack logs into the Problems panel (HDL line, `.cst` line of the
+  port, or `fpga.yaml`). Unlocated warnings stay in the output.
 - **Formalised tests** — integration tests over the injected-IO flows and a
   coverage pass, beyond the per-module unit tests that grow with each phase.
 - **esbuild bundling** — bundle to one file to shrink the VSIX and speed
   activation; v0.1 ships unbundled (one runtime dep, `yaml`) to keep
   debugging simple.
-- **Incremental builds** — re-run a stage when its inputs changed, not only
-  when its output file is missing. Today a stage command reuses an existing
-  earlier-stage artefact even if the HDL or constraints have since changed;
-  track source mtimes or hashes and rebuild what is stale.
-- **Clean command** — remove the `build/` tree (or just its regenerable
-  parts) from a command.
+- **Incremental builds** — Done. A stage is skipped when its output is
+  newer than its inputs; a toolchain switch makes everything stale.
+  Known gap: `include`d files are not tracked.
+- **Clean command** — Done. Deletes `build/`, keeping `build/backup/`.
 - **VHDL synthesis** — wire up the `ghdl` / ghdl-yosys-plugin path bundled in
   OSS CAD Suite so `.vhd` / `.vhdl` sources synthesise; they are currently
   rejected with a clear message.

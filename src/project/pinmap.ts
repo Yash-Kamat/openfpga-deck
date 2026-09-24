@@ -47,7 +47,7 @@ export function planPinConstraints(
 			bits.add(bit);
 			const signal = mapping[bit];
 			if (signal === undefined) {
-				warn(`${bit} is not mapped to a pin; nextpnr will place it on any free pin.`, bit);
+				warn(`${bit} has no pin yet; place & route will fail until it has one.`, bit);
 				continue;
 			}
 			const pin = board.pins[signal];

@@ -21,7 +21,9 @@ import { loadProject, PROJECT_FILE_NAME } from '../project/loader';
 import type { FpgaProject } from '../project/schema';
 import type { Toolchain } from '../toolchain/discovery';
 import { resolveToolchain } from '../toolchain/resolve';
-import { buildLayout } from './layout';
+import { lintCst, parseNextpnrLog, parsePackLog, parseYosysLog, type ProjectText, type ToolDiagnostic } from './diagnostics';
+import { isUpToDate } from './incremental';
+import { BUILD_DIRNAME, buildLayout } from './layout';
 import { acquireBuildLock, releaseBuildLock } from './lock';
 import { nodeProcessRunner } from './nodeProcess';
 import type { ProgramTarget } from './openFpgaLoader';
@@ -42,28 +44,48 @@ interface ProgramSpec {
 let activeBuild: AbortController | undefined;
 /** Set by registerBuildUi so the run functions can refresh the status bar. */
 let refreshStatusBar: () => void = () => {};
+/** Problems-panel entries from the last run of each tool. */
+let diagnostics: vscode.DiagnosticCollection | undefined;
+const toolDiagnostics = new Map<DiagnosticSource, ToolDiagnostic[]>();
+type ToolName = 'yosys' | 'nextpnr' | 'gowin_pack';
+type DiagnosticSource = ToolName | 'cst';
 
 export function registerBuildUi(
 	context: vscode.ExtensionContext,
 	output: vscode.OutputChannel,
 	boards: BoardRegistry,
 ): void {
+	// A stage command always runs its own stage; Build skips it too when it is
+	// up to date. Earlier stages run only when stale (see incremental.ts).
 	const run =
-		(title: string, target: number, forceAll = false) =>
+		(title: string, target: number, skipUpToDateTarget = false) =>
 		(): Promise<void> =>
-			runPipeline(output, boards, title, target, forceAll);
+			runPipeline(output, boards, title, target, skipUpToDateTarget);
 
+	diagnostics = vscode.languages.createDiagnosticCollection('OpenFPGA Deck');
 	context.subscriptions.push(
-		vscode.commands.registerCommand('openfpga.synthesize', run('synthesizing', 0, true)),
+		diagnostics,
+		vscode.commands.registerCommand('openfpga.synthesize', run('synthesizing', 0)),
 		vscode.commands.registerCommand('openfpga.placeAndRoute', run('place & route', 1)),
 		vscode.commands.registerCommand('openfpga.packBitstream', run('packing bitstream', 2)),
 		vscode.commands.registerCommand('openfpga.build', run('building', 2, true)),
-		vscode.commands.registerCommand('openfpga.program', () =>
-			runProgram(output, boards, 'programming', false),
-		),
+		vscode.commands.registerCommand('openfpga.program', () => runProgram(output, boards, 'programming')),
 		vscode.commands.registerCommand('openfpga.buildAndProgram', () =>
-			runProgram(output, boards, 'build & program', true),
+			runProgram(output, boards, 'build & program'),
 		),
+		vscode.commands.registerCommand('openfpga.clean', () => runClean(output)),
+		// Check a .cst as soon as it is saved, not only when a build reaches nextpnr.
+		vscode.workspace.onDidSaveTextDocument((doc) => {
+			const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+			if (!root || !/\.cst$/i.test(doc.fileName)) {
+				return;
+			}
+			const loaded = loadProject(root, undefined, boards.ids());
+			const board = loaded.ok ? boards.get(loaded.value.project.board) : undefined;
+			if (loaded.ok && board) {
+				void checkCst({ root, project: loaded.value.project, board });
+			}
+		}),
 		vscode.commands.registerCommand('openfpga.detectBoard', () => runDetect(output, boards)),
 		vscode.commands.registerCommand('openfpga.writeFileToBoard', () =>
 			runWriteFile(output, boards),
@@ -127,6 +149,7 @@ async function showBuildMenu(): Promise<void> {
 		{ label: '$(rocket) Program', command: 'openfpga.program' },
 		{ label: '$(plug) Detect Board', command: 'openfpga.detectBoard' },
 		{ label: '$(file-binary) Write File to Board', command: 'openfpga.writeFileToBoard' },
+		{ label: '$(trash) Clean', description: 'delete build/ (keeps flash backups)', command: 'openfpga.clean' },
 	];
 	const pick = await vscode.window.showQuickPick(items, { title: 'OpenFPGA Deck' });
 	if (pick) {
@@ -145,13 +168,20 @@ interface StageResult {
 	readonly ok: boolean;
 	readonly canceled: boolean;
 	readonly summary: string;
+	readonly logFile?: string;
 }
 
 interface Stage {
+	/** Name for the "up to date" line. */
+	readonly name: string;
 	/** Progress-notification message while this stage runs. */
 	readonly message: string;
 	/** Absolute path of the file this stage produces; absent = always runs. */
 	readonly output?: string;
+	/** Absolute paths whose changes make `output` stale. */
+	readonly inputs?: readonly string[];
+	/** Whose log feeds the Problems panel. */
+	readonly tool?: ToolName;
 	run(io: PipelineIo): Promise<StageResult>;
 }
 
@@ -220,20 +250,33 @@ function stagesFor(ctx: Prepared, programSpec?: ProgramSpec): Stage[] {
 
 	// Build the bitstream unless we are writing a file the user picked.
 	if (!programSpec?.fromFile) {
+		const abs = (rel: string): string => path.join(ctx.root, rel);
+		const yaml = abs(PROJECT_FILE_NAME);
+		const netlist = path.join(layout.netlistDir, `${ctx.project.top}.json`);
+		const pnr = path.join(layout.pnrDir, `${ctx.project.top}.pnr.json`);
 		stages.push(
 			{
+				name: 'Synthesis',
 				message: 'synthesizing…',
-				output: path.join(layout.netlistDir, `${ctx.project.top}.json`),
+				output: netlist,
+				inputs: [yaml, ...ctx.project.sources.map(abs)],
+				tool: 'yosys',
 				run: (io) => synthesize({ ...common, yosysExe: tools.yosys.path }, io),
 			},
 			{
+				name: 'Place & route',
 				message: 'placing & routing…',
-				output: path.join(layout.pnrDir, `${ctx.project.top}.pnr.json`),
+				output: pnr,
+				inputs: [yaml, netlist, ...ctx.project.constraints.map(abs)],
+				tool: 'nextpnr',
 				run: (io) => placeAndRoute({ ...common, nextpnrExe: tools['nextpnr-himbaechel'].path }, io),
 			},
 			{
+				name: 'Packing',
 				message: 'packing bitstream…',
 				output: path.join(layout.bitstreamDir, `${ctx.project.name}.fs`),
+				inputs: [pnr],
+				tool: 'gowin_pack',
 				run: (io) => packBitstream({ ...common, gowinPackExe: tools.gowin_pack.path }, io),
 			},
 		);
@@ -242,6 +285,7 @@ function stagesFor(ctx: Prepared, programSpec?: ProgramSpec): Stage[] {
 	if (programSpec) {
 		if (programSpec.backup) {
 			stages.push({
+				name: 'Flash backup',
 				message: 'backing up flash…',
 				run: (io) =>
 					backupFlash(
@@ -252,6 +296,7 @@ function stagesFor(ctx: Prepared, programSpec?: ProgramSpec): Stage[] {
 		}
 		const message = programSpec.target === 'flash' ? 'writing flash…' : 'loading SRAM…';
 		stages.push({
+			name: 'Programming',
 			message,
 			run: (io) =>
 				programSpec.fromFile
@@ -299,7 +344,6 @@ async function runProgram(
 	output: vscode.OutputChannel,
 	boards: BoardRegistry,
 	title: string,
-	forceAll: boolean,
 ): Promise<void> {
 	const ctx = await prepare(output, boards);
 	if (!ctx) {
@@ -319,7 +363,7 @@ async function runProgram(
 		backup = decision === 'backup';
 	}
 
-	await runPipeline(output, boards, title, undefined, forceAll, ctx, { target, backup });
+	await runPipeline(output, boards, title, undefined, false, ctx, { target, backup });
 }
 
 async function runWriteFile(output: vscode.OutputChannel, boards: BoardRegistry): Promise<void> {
@@ -482,7 +526,7 @@ async function runPipeline(
 	boards: BoardRegistry,
 	title: string,
 	targetIndex: number | undefined,
-	forceAll: boolean,
+	skipUpToDateTarget: boolean,
 	prepared?: Prepared,
 	programSpec?: ProgramSpec,
 ): Promise<void> {
@@ -494,36 +538,139 @@ async function runPipeline(
 	// Program commands run through the last stage; stage commands stop at their
 	// explicit index.
 	const target = targetIndex ?? stages.length - 1;
+	// Output from a different toolchain version is stale, whatever its date.
+	const stampFile = path.join(buildLayout(ctx.root).dir, '.toolchain');
+	const sameToolchain = (await fs.readFile(stampFile, 'utf8').catch(() => '')) === ctx.toolchain.root;
+
+	if (!programSpec?.fromFile) {
+		await checkCst(ctx);
+	}
 
 	await runExclusive(output, title, async (io, progress) => {
-		let last: StageResult = { ok: true, canceled: false, summary: 'Nothing to do.' };
+		let last: StageResult = { ok: true, canceled: false, summary: 'Everything is up to date.' };
+		let ran = false;
 		for (let i = 0; i <= target; i++) {
 			const stage = stages[i];
-			const isTarget = i === target;
-			if (
-				!forceAll &&
-				!isTarget &&
-				stage.output !== undefined &&
-				(await pathExists(stage.output))
-			) {
+			const mayskip = i < target || skipUpToDateTarget;
+			if (mayskip && !ran && sameToolchain && (await upToDate(stage))) {
+				output.appendLine(`⏭ ${stage.name}: up to date, skipped.`);
 				continue;
 			}
 			progress.report({ message: stage.message });
 			last = await stage.run(io);
+			ran = true;
+			if (stage.tool) {
+				await publishDiagnostics(ctx, stage.tool, last.logFile);
+			}
 			output.append(last.ok ? successLine(last.summary) : failureLine(last.summary));
 			if (!last.ok) {
 				return last;
+			}
+			if (stage.tool) {
+				await fs.writeFile(stampFile, ctx.toolchain.root, 'utf8').catch(() => undefined);
 			}
 		}
 		return last;
 	});
 }
 
-function pathExists(p: string): Promise<boolean> {
-	return fs
-		.access(p)
-		.then(() => true)
-		.catch(() => false);
+async function upToDate(stage: Stage): Promise<boolean> {
+	if (!stage.output || !stage.inputs) {
+		return false;
+	}
+	const mtime = (p: string): Promise<number | undefined> =>
+		fs.stat(p).then(
+			(s) => s.mtimeMs,
+			() => undefined,
+		);
+	return isUpToDate(await mtime(stage.output), await Promise.all(stage.inputs.map(mtime)));
+}
+
+const PARSERS: Record<ToolName, (log: string, project: ProjectText) => ToolDiagnostic[]> = {
+	yosys: parseYosysLog,
+	nextpnr: parseNextpnrLog,
+	gowin_pack: parsePackLog,
+};
+
+/** Replace one tool's entries in the Problems panel with those from its latest log. */
+async function publishDiagnostics(ctx: Prepared, tool: ToolName, logFile: string | undefined): Promise<void> {
+	const read = (rel: string): Promise<string> => fs.readFile(path.join(ctx.root, rel), 'utf8').catch(() => '');
+	const log = logFile ? await fs.readFile(logFile, 'utf8').catch(() => '') : '';
+	const project: ProjectText = {
+		yaml: await read(PROJECT_FILE_NAME),
+		csts: await readCsts(ctx),
+		hdl: tool === 'yosys' ? Object.fromEntries(await Promise.all(ctx.project.sources.map(async (s) => [s, await read(s)]))) : undefined,
+	};
+	toolDiagnostics.set(tool, PARSERS[tool](log, project));
+	showDiagnostics(ctx.root);
+}
+
+async function readCsts(ctx: Pick<Prepared, 'root' | 'project'>): Promise<{ path: string; text: string }[]> {
+	return Promise.all(
+		ctx.project.constraints
+			.filter((c) => /\.cst$/i.test(c))
+			.map(async (c) => ({ path: c, text: await fs.readFile(path.join(ctx.root, c), 'utf8').catch(() => '') })),
+	);
+}
+
+/** The .cst checks that need no tools (see lintCst). */
+async function checkCst(ctx: Pick<Prepared, 'root' | 'project' | 'board'>): Promise<void> {
+	const locs = new Set(Object.values(ctx.board.pins).flatMap((p) => p.loc.split(',').map((l) => l.trim())));
+	const found = (await readCsts(ctx)).flatMap((c) => lintCst(c.path, c.text, locs, ctx.board.name));
+	toolDiagnostics.set('cst', found);
+	showDiagnostics(ctx.root);
+}
+
+function showDiagnostics(root: string): void {
+	if (!diagnostics) {
+		return;
+	}
+	const byFile = new Map<string, vscode.Diagnostic[]>();
+	for (const [tool, list] of toolDiagnostics) {
+		for (const d of list) {
+			const line = Math.max(0, d.line - 1);
+			const diag = new vscode.Diagnostic(
+				new vscode.Range(line, 0, line, Number.MAX_SAFE_INTEGER),
+				d.message,
+				d.severity === 'error' ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning,
+			);
+			diag.source = tool === 'cst' ? 'OpenFPGA Deck' : tool;
+			const file = path.resolve(root, d.file);
+			byFile.set(file, [...(byFile.get(file) ?? []), diag]);
+		}
+	}
+	diagnostics.clear();
+	for (const [file, list] of byFile) {
+		diagnostics.set(vscode.Uri.file(file), list);
+	}
+}
+
+/** Delete build/ except build/backup/ (flash dumps cannot be regenerated). */
+async function runClean(output: vscode.OutputChannel): Promise<void> {
+	const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	if (!root || !existsSync(path.join(root, PROJECT_FILE_NAME))) {
+		vscode.window.showErrorMessage('OpenFPGA Deck: open a project folder first.');
+		return;
+	}
+	if (!acquireBuildLock()) {
+		vscode.window.showWarningMessage('OpenFPGA Deck: a build is running; cancel it before cleaning.');
+		return;
+	}
+	try {
+		const dir = path.join(root, BUILD_DIRNAME);
+		const entries = await fs.readdir(dir).catch(() => [] as string[]);
+		const removed = entries.filter((e) => e !== 'backup');
+		for (const entry of removed) {
+			await fs.rm(path.join(dir, entry), { recursive: true, force: true });
+		}
+		toolDiagnostics.clear();
+		showDiagnostics(root);
+		const kept = entries.includes('backup') ? ' Flash backups in build/backup/ were kept.' : '';
+		output.appendLine(`Clean: removed ${removed.length ? removed.map((e) => `build/${e}`).join(', ') : 'nothing'}.${kept}`);
+		vscode.window.showInformationMessage(`OpenFPGA Deck: build output removed.${kept}`);
+	} finally {
+		releaseBuildLock();
+	}
 }
 
 function report(output: vscode.OutputChannel, result: StageResult): void {
