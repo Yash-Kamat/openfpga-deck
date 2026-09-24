@@ -252,6 +252,13 @@ intended successor (Azure DevOps retires global PATs on 2026-12-01).
   a board drawing. No open-source equivalent exists; `nextpnr`'s Qt GUI
   floorplan view is the reference for rendering the fabric.
 
+- **Custom board files (v0.4)** — load board files from the user's own
+  folder (a setting and/or `boards/` in the project) next to the shipped
+  ones, through the same validator, and document the format. Waits for the
+  format to settle after the v0.3 diagram and IO planner. The chip pin grid
+  belongs to the FPGA package, not the board, so it would be a separate
+  device file that board files point to.
+
   Both are views of the same port → pin mapping (`src/project/pinmap.ts`)
   and write the `.cst` through it, not through a writer of their own.
 - **Floorplanner** — placement-region constraints for P&R. Lower priority.
